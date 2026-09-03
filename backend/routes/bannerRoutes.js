@@ -4,6 +4,7 @@ const bannerController = require('../controllers/bannerController');
 const { authMiddleware, adminMiddleware } = require('../middleware/authMiddleware');
 const { upload, uploadToCloudinary } = require('../config/cloudinary');
 const { applyWatermark } = require('../utils/watermark');
+const { prepareCatalogImage } = require('../utils/bgRemove');
 
 // User Route
 router.get('/', bannerController.getAllBanners);
@@ -19,8 +20,13 @@ router.post('/upload', authMiddleware, adminMiddleware, upload.single('image'), 
     try {
         if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-        // Apply brand watermark (logo and gold text)
-        const watermarkedBuffer = await applyWatermark(req.file.buffer);
+        // Lifestyle banners keep their original background unless ?removeBg=true
+        const shouldRemoveBg = req.query.removeBg === 'true';
+        const catalogBuffer = shouldRemoveBg
+            ? await prepareCatalogImage(req.file.buffer)
+            : req.file.buffer;
+
+        const watermarkedBuffer = await applyWatermark(catalogBuffer);
 
         // Stream upload to Cloudinary
         const result = await uploadToCloudinary(watermarkedBuffer, 'HGEnterprises/products');

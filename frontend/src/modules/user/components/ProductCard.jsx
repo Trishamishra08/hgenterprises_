@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Heart, Star, ShoppingBag, Layers, Play } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import { Link } from 'react-router-dom';
+import { resolveCatalogImage } from '../data/catalogImages';
 
 const ProductCard = ({ product, isWishlistPage = false }) => {
     const { addToCart, addToWishlist, removeFromWishlist, wishlist, cart, updateQuantity, removeFromCart } = useShop();
@@ -35,8 +36,16 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
         }
     };
 
-    const primaryImage = product.image || (product.images && product.images[0]) || 'https://via.placeholder.com/400';
-    const secondaryImage = product.hoverImage || (product.images && product.images[1]) || primaryImage;
+    const primaryImage = resolveCatalogImage(
+        product.image || (product.images && product.images[0]),
+        product.name,
+        product.department || product.category
+    );
+    const secondaryImage = resolveCatalogImage(
+        product.hoverImage || (product.images && product.images[1]),
+        product.name,
+        product.department || product.category
+    ) || primaryImage;
 
     return (
         <div className="group relative w-full flex flex-col bg-[#FAF8F5] rounded-xl overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-lg">
@@ -73,7 +82,7 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
                 <img
                     src={primaryImage}
                     alt={product.name}
-                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-in-out group-hover:opacity-0"
+                    className="absolute inset-0 w-full h-full object-contain bg-white transition-opacity duration-500 ease-in-out group-hover:opacity-0"
                 />
 
                 {/* Secondary Hover Image */}
@@ -84,7 +93,7 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
                         e.target.onerror = null;
                         e.target.src = primaryImage;
                     }}
-                    className="absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-in-out opacity-0 group-hover:opacity-100"
+                    className="absolute inset-0 w-full h-full object-contain bg-white transition-all duration-500 ease-in-out opacity-0 group-hover:opacity-100"
                 />
 
                 {/* Wishlist Icon (Top Left Circle) */}

@@ -1,38 +1,27 @@
-/** BlueStone-style curated category thumbnails for Handpicked section */
-import ringsImg from '../assets/cat_rings_ruby.jpg';
-import earringsImg from '../assets/cat_earrings_trad.jpg';
-import pendantsImg from '../assets/cat_pendant.png';
-import chainsImg from '../assets/new_launch_chains.png';
-import necklacesImg from '../assets/cat_necklaces_emerald.jpg';
-import banglesImg from '../assets/new_launch_bracelets.png';
-import braceletsImg from '../assets/cat_bracelets.png';
-import mangalsutraImg from '../assets/kundan_necklace.png';
-import nosePinsImg from '../assets/silver_pendant.png';
-import solitairesImg from '../assets/diamond_solitaire.png';
-import kidsImg from '../assets/nav_gift_kids.png';
-import kadaImg from '../assets/cat_bracelet_wine.png';
-import mensImg from '../assets/nav_gift_mens.png';
-import ankletsImg from '../assets/new_launch_anklets.png';
-
-const watchAccessoriesImg =
-    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=240&h=240&q=90';
+/** Jewellery category thumbnails — white packshots so jewellery reads clearly in Handpicked. */
+import jewRing from '../assets/jew_ring_white.png';
+import jewEarrings from '../assets/jew_earrings_white.png';
+import jewPendant from '../assets/jew_pendant_white.png';
+import jewNecklace from '../assets/jew_necklace_white.png';
+import jewBracelet from '../assets/jew_bracelet_white.png';
+import jewAnklet from '../assets/jew_anklet_white.png';
 
 export const HANDPICKED_CATEGORY_DEFS = [
-    { key: 'rings', name: 'Rings', image: ringsImg },
-    { key: 'earrings', name: 'Earrings', image: earringsImg },
-    { key: 'pendants', name: 'Pendants', image: pendantsImg },
-    { key: 'chains', name: 'Chains', image: chainsImg },
-    { key: 'necklaces', name: 'Necklaces', image: necklacesImg },
-    { key: 'bangles', name: 'Bangles', image: banglesImg },
-    { key: 'bracelets', name: 'Bracelets', image: braceletsImg },
-    { key: 'mangalsutra', name: 'Mangalsutra', image: mangalsutraImg },
-    { key: 'nose-pins', name: 'Nose Pins', image: nosePinsImg },
-    { key: 'solitaires', name: 'Solitaires', image: solitairesImg },
-    { key: 'kids-jewellery', name: "Kids' Jewellery", image: kidsImg },
-    { key: 'kada', name: 'Kada', image: kadaImg },
-    { key: 'mens-jewellery', name: "Men's Jewellery", image: mensImg },
-    { key: 'watch-accessories', name: 'Watch Accessories', image: watchAccessoriesImg },
-    { key: 'anklets', name: 'Anklets', image: ankletsImg },
+    { key: 'rings', name: 'Rings', image: jewRing },
+    { key: 'earrings', name: 'Earrings', image: jewEarrings },
+    { key: 'pendants', name: 'Pendants', image: jewPendant },
+    { key: 'chains', name: 'Chains', image: jewNecklace },
+    { key: 'necklaces', name: 'Necklaces', image: jewNecklace },
+    { key: 'bangles', name: 'Bangles', image: jewBracelet },
+    { key: 'bracelets', name: 'Bracelets', image: jewBracelet },
+    { key: 'mangalsutra', name: 'Mangalsutra', image: jewNecklace },
+    { key: 'nose-pins', name: 'Nose Pins', image: jewPendant },
+    { key: 'solitaires', name: 'Solitaires', image: jewRing },
+    { key: 'kids-jewellery', name: "Kids' Jewellery", image: jewRing },
+    { key: 'kada', name: 'Kada', image: jewBracelet },
+    { key: 'mens-jewellery', name: "Men's Jewellery", image: jewRing },
+    { key: 'watch-accessories', name: 'Watch Accessories', image: jewBracelet },
+    { key: 'anklets', name: 'Anklets', image: jewAnklet },
 ];
 
 const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');

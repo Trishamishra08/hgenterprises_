@@ -931,7 +931,7 @@ const Shop = () => {
                             Selected:
                         </span>
                         {activeFilters.map((chip) => (
-                            <button
+                        <button 
                                 key={chip.id}
                                 type="button"
                                 onClick={chip.clear}
@@ -1011,19 +1011,19 @@ const Shop = () => {
                             </button>
                         </div>
                         <div className="flex gap-2 items-center shrink-0">
-                            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-sm px-2 py-0.5 shrink-0">
-                                <span className="text-[9px] font-bold uppercase text-gray-400 whitespace-nowrap">Sort By:</span>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="bg-transparent border-none text-[10px] font-bold uppercase text-[#337ab7] focus:ring-0 cursor-pointer p-0 min-w-[75px]"
-                                >
-                                    {["WHAT'S NEW", "POPULAR", "PRICE LOW TO HIGH", "PRICE HIGH TO LOW", "DISCOUNT"].map(opt => (
-                                        <option key={opt} value={opt}>{opt}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-sm px-2 py-0.5 shrink-0">
+                            <span className="text-[9px] font-bold uppercase text-gray-400 whitespace-nowrap">Sort By:</span>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value)}
+                                className="bg-transparent border-none text-[10px] font-bold uppercase text-[#337ab7] focus:ring-0 cursor-pointer p-0 min-w-[75px]"
+                            >
+                                {["WHAT'S NEW", "POPULAR", "PRICE LOW TO HIGH", "PRICE HIGH TO LOW", "DISCOUNT"].map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                            </select>
                         </div>
+                    </div>
                     </div>
 
                     {productViewMode === 'inStore' && (

@@ -16,6 +16,13 @@ import latestEarrings from '../assets/latest_drop_earrings.png';
 import latestNecklace from '../assets/latest_drop_necklace.png';
 import latestBracelet from '../assets/latest_drop_bracelet.png';
 import catNecklacesEmerald from '../assets/cat_necklaces_emerald.jpg';
+import jewRingWhite from '../assets/jew_ring_white.png';
+import jewEarringsWhite from '../assets/jew_earrings_white.png';
+import jewNecklaceWhite from '../assets/jew_necklace_white.png';
+import jewBraceletWhite from '../assets/jew_bracelet_white.png';
+import jewPendantWhite from '../assets/jew_pendant_white.png';
+import toolMeasurementWhite from '../assets/tool_measurement_white.png';
+import machineLaserWhite from '../assets/machine_laser_white.png';
 
 // Helper lists for premium multi-column navigation menu
 const getPopularTypes = (hoveredSubCat) => {
@@ -116,17 +123,18 @@ const getMetalsAndStones = (hoveredSubCat) => {
 
 const getCollectionImage = (hoveredSubCat) => {
     const cat = hoveredSubCat?.toLowerCase();
-    if (cat === 'rings' || cat === 'ring') return proposalBanner || customRings;
-    if (cat === 'earrings') return latestEarrings;
-    if (cat === 'necklaces' || cat === 'necklace') return catNecklacesEmerald || latestNecklace;
-    if (cat === 'bracelets' || cat === 'bracelet') return latestBracelet;
+    if (cat === 'rings' || cat === 'ring') return jewRingWhite;
+    if (cat === 'earrings') return jewEarringsWhite;
+    if (cat === 'necklaces' || cat === 'necklace') return jewNecklaceWhite;
+    if (cat === 'pendants' || cat === 'pendant') return jewPendantWhite;
+    if (cat === 'bracelets' || cat === 'bracelet') return jewBraceletWhite;
     if (cat === 'hand tools' || cat === 'jewellery-tools' || cat === 'tools' || cat === 'measurement' || cat === 'cutting' || cat === 'polishing') {
-        return 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=400';
+        return toolMeasurementWhite;
     }
     if (cat === 'laser machines' || cat === 'laser-machines' || cat === 'machines' || cat === 'cleaning' || cat === 'casting' || cat === 'laser') {
-        return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400';
+        return machineLaserWhite;
     }
-    return bridalBanner;
+    return jewRingWhite;
 };
 
 const getCollectionTitle = (hoveredSubCat) => {

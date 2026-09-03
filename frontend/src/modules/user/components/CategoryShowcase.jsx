@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../../../context/ShopContext';
 import Skeleton from './Skeleton';
+import { resolveCatalogImage } from '../data/catalogImages';
 
 const DEPARTMENT_TABS = [
     { id: 'jewellery', name: 'JEWELLERY' },
@@ -82,9 +83,9 @@ const CategoryShowcase = () => {
                                             <div className="relative w-16 h-16 md:w-24 md:h-24 rounded-full overflow-hidden border border-white/10 p-0.5 transition-all duration-700 group-hover:border-gold/30 group-hover:shadow-[0_15px_35px_rgba(0,0,0,0.5)] group-hover:scale-[1.05]">
                                                 <div className="w-full h-full rounded-full overflow-hidden bg-white/5">
                                                     <img
-                                                        src={cat.image || 'https://via.placeholder.com/400'}
+                                                        src={resolveCatalogImage(cat.image, cat.name, cat.department || activeTab)}
                                                         alt={cat.name}
-                                                        className="w-full h-full object-cover transform transition-transform duration-1000 group-hover:scale-110"
+                                                        className="w-full h-full object-contain bg-white transform transition-transform duration-1000 group-hover:scale-110"
                                                     />
                                                 </div>
                                             </div>

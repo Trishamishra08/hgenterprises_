@@ -110,10 +110,10 @@ const SubcategoryAssets = () => {
         try {
             const formData = new FormData();
             formData.append('image', file);
-            const uploadRes = await api.post('/banners/upload', formData, {
+            const uploadRes = await api.post('/upload/image', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            const imageUrl = uploadRes.data.imageUrl;
+            const imageUrl = uploadRes.data.imageUrl || uploadRes.data.url;
 
             const catRes = await api.get(`/categories/${catId}`);
             const category = catRes.data;

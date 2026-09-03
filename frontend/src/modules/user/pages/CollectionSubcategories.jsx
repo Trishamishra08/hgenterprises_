@@ -3,133 +3,10 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../../../utils/api';
 import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { resolveCatalogImage, CATALOG } from '../data/catalogImages';
 
-const subcategoryFallbackImages = {
-    'rings': {
-        'engagement': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&auto=format&fit=crop',
-        'cocktail': 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?q=80&w=600&auto=format&fit=crop',
-        'couple rings': 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?q=80&w=600&auto=format&fit=crop',
-        'solitaire': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&auto=format&fit=crop',
-        'gold band': 'https://images.unsplash.com/photo-1589674781759-c21c37956a44?q=80&w=600&auto=format&fit=crop',
-        'diamond ring': 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?q=80&w=600&auto=format&fit=crop',
-        'bridal': 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&auto=format&fit=crop'
-    },
-    'pendants': {
-        'default': 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=600&auto=format&fit=crop'
-    },
-    'earrings': {
-        'default': 'https://images.unsplash.com/photo-1630019852942-f89202989a59?q=80&w=600&auto=format&fit=crop'
-    },
-    'necklaces': {
-        'default': 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=600&auto=format&fit=crop'
-    },
-    'bracelets': {
-        'default': 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=600&auto=format&fit=crop'
-    },
-    'bangles': {
-        'default': 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=600&auto=format&fit=crop'
-    }
-};
-
-const getSubcategoryImage = (sub, catName) => {
-    const catKey = catName?.trim().toLowerCase() || '';
-    const subKey = sub.name?.trim().toLowerCase() || '';
-
-    // Check if subcategory is related to tools, calibration, measurement, polishing, optics, cutting
-    const isToolsRelated = catKey.includes('tool') || 
-                          subKey.includes('tool') || 
-                          subKey.includes('measurement') || 
-                          subKey.includes('optics') || 
-                          subKey.includes('cutting') || 
-                          subKey.includes('polishing') ||
-                          subKey.includes('forging') ||
-                          subKey.includes('setting');
-
-    if (isToolsRelated) {
-        if (subKey.includes('measurement')) {
-            return 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('optics') || subKey.includes('lens')) {
-            return 'https://images.unsplash.com/photo-1576086213369-97a306d36557?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('polishing') || subKey.includes('refinement')) {
-            return 'https://images.unsplash.com/photo-1581092162384-8987c1d64718?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('cutting') || subKey.includes('piercing')) {
-            return 'https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('forging') || subKey.includes('setting')) {
-            return 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?q=80&w=600&auto=format&fit=crop';
-        }
-        return 'https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=600&auto=format&fit=crop';
-    }
-
-    const isMachineRelated = catKey.includes('machine') || 
-                            subKey.includes('machine') || 
-                            subKey.includes('laser') || 
-                            subKey.includes('welding') || 
-                            subKey.includes('casting') || 
-                            subKey.includes('printer') || 
-                            subKey.includes('refining');
-
-    if (isMachineRelated) {
-        if (subKey.includes('laser') || subKey.includes('welding')) {
-            return 'https://images.unsplash.com/photo-1581092162384-8987c1d64718?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('casting') || subKey.includes('vacuum')) {
-            return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('printer') || subKey.includes('3d')) {
-            return 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?q=80&w=600&auto=format&fit=crop';
-        }
-        if (subKey.includes('refining') || subKey.includes('furnace')) {
-            return 'https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?q=80&w=600&auto=format&fit=crop';
-        }
-        return 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop';
-    }
-
-    // For rings, ALWAYS prioritize our hand-curated, premium luxury ring images to ensure maximum context-appropriate visual elegance
-    if (catKey === 'rings' || catKey === 'ring') {
-        if (subcategoryFallbackImages['rings'][subKey]) {
-            return subcategoryFallbackImages['rings'][subKey];
-        }
-        // Check for substring matches for maximum robustness (e.g. 'couple rings' matching 'couple')
-        for (const [key, value] of Object.entries(subcategoryFallbackImages['rings'])) {
-            if (subKey.includes(key) || key.includes(subKey)) {
-                return value;
-            }
-        }
-    }
-
-    // Check if sub.image is valid, and doesn't contain placeholders or technical/UML/class diagrams
-    const isPlaceholder = !sub.image ||
-        sub.image.includes('via.placeholder') ||
-        sub.image.includes('diagram') ||
-        sub.image.toLowerCase().includes('uml') ||
-        sub.image.toLowerCase().includes('class');
-
-    if (!isPlaceholder) {
-        return sub.image;
-    }
-
-    // Fallback to our curated map
-    if (subcategoryFallbackImages[catKey]) {
-        if (subcategoryFallbackImages[catKey][subKey]) {
-            return subcategoryFallbackImages[catKey][subKey];
-        }
-        for (const [key, value] of Object.entries(subcategoryFallbackImages[catKey])) {
-            if (subKey.includes(key) || key.includes(subKey)) {
-                return value;
-            }
-        }
-        if (subcategoryFallbackImages[catKey]['default']) {
-            return subcategoryFallbackImages[catKey]['default'];
-        }
-    }
-
-    // Default premium jewellery fallback image
-    return 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600&auto=format&fit=crop';
-};
+const getSubcategoryImage = (sub, catName) =>
+    resolveCatalogImage(sub.image, `${catName || ''} ${sub.name || ''}`, catName);
 
 const CollectionSubcategories = () => {
     const { categoryId } = useParams();
@@ -221,49 +98,17 @@ const CollectionSubcategories = () => {
                 
                 if (subcategoriesToRender.length === 0 && isToolsCategory) {
                     subcategoriesToRender = [
-                        {
-                            name: "Measurement & Calibration",
-                            image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=600&auto=format&fit=crop",
-                            path: "measurement"
-                        },
-                        {
-                            name: "Precision Cutting & Piercing",
-                            image: "https://images.unsplash.com/photo-1534224039826-c7a0eda0e6b3?q=80&w=600&auto=format&fit=crop",
-                            path: "cutting"
-                        },
-                        {
-                            name: "Polishing & Refinement",
-                            image: "https://images.unsplash.com/photo-1581092162384-8987c1d64718?q=80&w=600&auto=format&fit=crop",
-                            path: "polishing"
-                        },
-                        {
-                            name: "Setting & Forging",
-                            image: "https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?q=80&w=600&auto=format&fit=crop",
-                            path: "setting"
-                        }
+                        { name: "Measurement & Calibration", image: CATALOG.tools.measurement, path: "measurement" },
+                        { name: "Precision Cutting & Piercing", image: CATALOG.tools.cutting, path: "cutting" },
+                        { name: "Polishing & Refinement", image: CATALOG.tools.polishing, path: "polishing" },
+                        { name: "Setting & Forging", image: CATALOG.tools.setting, path: "setting" }
                     ];
                 } else if (subcategoriesToRender.length === 0 && isMachinesCategory) {
                     subcategoriesToRender = [
-                        {
-                            name: "Laser Welding Systems",
-                            image: "https://images.unsplash.com/photo-1581092162384-8987c1d64718?q=80&w=600&auto=format&fit=crop",
-                            path: "laser-welding"
-                        },
-                        {
-                            name: "Fiber Laser Engravers",
-                            image: "https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?q=80&w=600&auto=format&fit=crop",
-                            path: "fiber-laser"
-                        },
-                        {
-                            name: "Induction Casting Units",
-                            image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600&auto=format&fit=crop",
-                            path: "induction-casting"
-                        },
-                        {
-                            name: "3D Wax Printing",
-                            image: "https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?q=80&w=600&auto=format&fit=crop",
-                            path: "3d-printing"
-                        }
+                        { name: "Laser Welding Systems", image: CATALOG.machines.laser, path: "laser-welding" },
+                        { name: "Fiber Laser Engravers", image: CATALOG.machines.laser, path: "fiber-laser" },
+                        { name: "Induction Casting Units", image: CATALOG.machines.casting, path: "induction-casting" },
+                        { name: "3D Wax Printing", image: CATALOG.machines.printer, path: "3d-printing" }
                     ];
                 }
 
@@ -288,7 +133,7 @@ const CollectionSubcategories = () => {
                                                     <img
                                                         src={imageUrl}
                                                         alt={sub.name}
-                                                        className="w-full h-full object-cover grayscale-[0.1] group-hover:grayscale-0 transition-all duration-1000 group-hover:scale-110"
+                                                        className="w-full h-full object-contain bg-white group-hover:scale-105 transition-all duration-700"
                                                         crossOrigin="anonymous"
                                                     />
                                                     <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors" />
