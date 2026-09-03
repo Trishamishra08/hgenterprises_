@@ -4,6 +4,7 @@ import { SlidersHorizontal, LayoutGrid } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useShop } from '../../../context/ShopContext';
 import { buildHandpickedCategories } from '../data/handpickedCategoryData';
+import { getProductDepartment } from '../data/popularSearchData';
 import ProductCard from './ProductCard';
 import Skeleton from './Skeleton';
 
@@ -65,7 +66,21 @@ const HandpickedForYou = () => {
             );
         }
 
-        return list.slice(0, 24);
+        if (activeFilter !== 'all') {
+            return list.slice(0, 24);
+        }
+
+        const jewellery = [];
+        const others = [];
+        list.forEach((p) => {
+            const dept = getProductDepartment(p.department || p.category || p.name || '');
+            if (dept === 'jewellery') jewellery.push(p);
+            else others.push(p);
+        });
+
+        const jewelleryCount = Math.min(jewellery.length, 18);
+        const otherCount = Math.min(others.length, 24 - jewelleryCount);
+        return [...jewellery.slice(0, jewelleryCount), ...others.slice(0, otherCount)];
     }, [products, activeFilter, categoryItems]);
 
     const measureHeaderOffset = useCallback(() => {

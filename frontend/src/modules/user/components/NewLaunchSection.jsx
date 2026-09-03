@@ -3,30 +3,24 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
-import catRings from '../assets/cat_rings.png'; // Import for padding
-import luxuryJewelry from '../assets/luxury_jewelry.png';
-import diamondRing from '../assets/diamond_ring.png';
-import silverPendant from '../assets/silver_pendant.png';
-import hgLogoNew from '../assets/hg_logo_new.png';
-
-const fallbacks = [luxuryJewelry, diamondRing, silverPendant];
+import { resolveCatalogImage } from '../data/catalogImages';
+import catRings from '../assets/cat_rings.png';
 
 const LaunchCard = ({ item, index }) => {
     const itemLabel = item.name || item.label;
-    const fallbackSrc = fallbacks[index % fallbacks.length];
-    
     const isMachine = itemLabel && (
-        itemLabel.toLowerCase().includes('welder') || 
-        itemLabel.toLowerCase().includes('machine') || 
-        itemLabel.toLowerCase().includes('vacuum')
+        itemLabel.toLowerCase().includes('welder') ||
+        itemLabel.toLowerCase().includes('machine') ||
+        itemLabel.toLowerCase().includes('vacuum') ||
+        itemLabel.toLowerCase().includes('laser') ||
+        itemLabel.toLowerCase().includes('printer')
     );
-    
-    const initialSrc = isMachine ? fallbackSrc : item.image;
+    const initialSrc = resolveCatalogImage(item.image, itemLabel, isMachine ? 'machines' : '');
     const [imgSrc, setImgSrc] = React.useState(initialSrc);
 
     React.useEffect(() => {
-        setImgSrc(isMachine ? fallbackSrc : item.image);
-    }, [item.image, isMachine, fallbackSrc]);
+        setImgSrc(resolveCatalogImage(item.image, itemLabel, isMachine ? 'machines' : ''));
+    }, [item.image, isMachine, itemLabel]);
 
     return (
         <motion.div
@@ -50,7 +44,7 @@ const LaunchCard = ({ item, index }) => {
                         <img
                             src={imgSrc}
                             alt={itemLabel}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            className="w-full h-full object-contain bg-white transition-transform duration-700 group-hover:scale-110"
                             onError={() => setImgSrc(fallbackSrc)}
                         />
                     </div>

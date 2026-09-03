@@ -371,7 +371,7 @@ const BlogManagement = () => {
                                             uploadData.append('image', file);
 
                                             try {
-                                                const { data } = await api.post('/upload/image', uploadData, {
+                                                const { data } = await api.post('/upload/image?removeBg=false', uploadData, {
                                                     headers: { 'Content-Type': 'multipart/form-data' }
                                                 });
                                                 setFormData({ ...formData, image: data.url });

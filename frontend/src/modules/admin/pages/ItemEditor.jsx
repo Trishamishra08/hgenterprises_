@@ -165,10 +165,10 @@ const ItemEditor = () => {
             for (const file of files) {
                 const formDataUpload = new FormData();
                 formDataUpload.append('image', file);
-                const res = await api.post('/banners/upload', formDataUpload, {
+                const res = await api.post('/upload/image', formDataUpload, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
-                uploadedUrls.push(res.data.imageUrl);
+                uploadedUrls.push(res.data.imageUrl || res.data.url);
             }
             setFormData(prev => ({
                 ...prev,
@@ -189,12 +189,12 @@ const ItemEditor = () => {
         try {
             const formDataUpload = new FormData();
             formDataUpload.append('image', file);
-            const res = await api.post('/banners/upload', formDataUpload, {
+            const res = await api.post('/upload/image', formDataUpload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setFormData(prev => ({
                 ...prev,
-                hoverImage: res.data.imageUrl
+                hoverImage: res.data.imageUrl || res.data.url
             }));
             toast.success('Hover asset uploaded successfully', { id: 'hover-upload' });
         } catch (error) {
