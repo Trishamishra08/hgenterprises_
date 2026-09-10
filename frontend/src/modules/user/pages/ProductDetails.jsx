@@ -696,14 +696,6 @@ const ProductDetails = () => {
                         0: { fontStyle: 'bold', textColor: [40, 40, 40], halign: 'left' },
                         1: { textColor: [fR, fG, fB], fontStyle: 'bold', halign: 'right' }
                     },
-                    // Align Amount header to the right to match data cells
-                    headStyles: {
-                        fillColor: [fR, fG, fB],
-                        textColor: [255, 255, 255],
-                        fontStyle: 'bold',
-                        fontSize: 8,
-                        cellPadding: 2
-                    },
                     didParseCell: (data) => {
                         if (data.section === 'head' && data.column.index === 1) {
                             data.cell.styles.halign = 'right';
