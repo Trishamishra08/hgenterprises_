@@ -88,6 +88,8 @@ import StoreLocator from './modules/user/pages/StoreLocator';
 import ReturnsPolicy from './modules/user/pages/ReturnsPolicy';
 import WarrantyInfo from './modules/user/pages/WarrantyInfo';
 import CustomizationPage from './modules/user/pages/CustomizationPage';
+import VideoCallLobby from './modules/user/pages/VideoCallLobby';
+import VideoCallRoom from './modules/user/pages/VideoCallRoom';
 
 const ScrollToTop = () => {
   const { pathname, key } = useLocation();
@@ -100,14 +102,16 @@ const ScrollToTop = () => {
 const AppContent = () => {
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith('/admin');
-  const noFooterPaths = ['/about', '/blogs', '/help', '/order-tracking', '/profile', '/offers'];
-  const hideFooter = isAdminPath || noFooterPaths.some(path => location.pathname.startsWith(path));
+  const isCallPath = location.pathname.startsWith('/call/');
+  const noFooterPaths = ['/about', '/blogs', '/help', '/order-tracking', '/profile', '/offers', '/video-call'];
+  const hideFooter = isAdminPath || isCallPath || noFooterPaths.some(path => location.pathname.startsWith(path));
+  const hideChrome = isAdminPath || isCallPath;
 
   return (
     <SmoothScroll>
-      <div className={`min-h-screen flex flex-col font-sans text-gray-900 ${!isAdminPath ? 'bg-[#FDF5F6]' : 'bg-gray-50'}`}>
+      <div className={`min-h-screen flex flex-col font-sans text-gray-900 ${!isAdminPath && !isCallPath ? 'bg-[#FDF5F6]' : isCallPath ? 'bg-[#1a0f10]' : 'bg-gray-50'}`}>
         <ScrollToTop />
-        {!isAdminPath && (
+        {!hideChrome && (
           <>
             <div className="sticky top-0 z-[100] w-full bg-white">
               <AnnouncementBar />
@@ -116,7 +120,7 @@ const AppContent = () => {
             <WhatsAppButton />
           </>
         )}
-        <main className={`flex-grow ${!isAdminPath ? 'pb-16 md:pb-0' : ''}`}>
+        <main className={`flex-grow ${!hideChrome ? 'pb-16 md:pb-0' : ''}`}>
           <Routes>
             {/* User Routes */}
             <Route path="/" element={<Home />} />
@@ -153,6 +157,8 @@ const AppContent = () => {
             <Route path="/blogs" element={<BlogsPage />} />
             <Route path="/offers/:slug" element={<OfferLandingPage />} />
             <Route path="/offers" element={<OffersPage />} />
+            <Route path="/video-call" element={<VideoCallLobby />} />
+            <Route path="/call/:callId" element={<VideoCallRoom />} />
 
             {/* Admin Routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

@@ -147,7 +147,8 @@ const Login = () => {
 
         if (res.success) {
             toast.success(isSignup ? 'Account created successfully!' : 'Welcome back!');
-            navigate('/');
+            const redirectTo = location.state?.from || '/';
+            navigate(redirectTo, { replace: true });
         } else {
             toast.error(res.message);
             setOtp(['', '', '', '', '', '']);
