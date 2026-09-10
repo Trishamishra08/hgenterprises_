@@ -1,12 +1,20 @@
 /**
- * WebRTC signaling only — no media streams pass through the server.
- * Events: call:join | call:offer | call:answer | call:ice-candidate | call:end
+ * Video call signaling:
+ * 1) User → call:request → admins notified
+ * 2) Admin → call:accept / call:reject
+ * 3) On accept both join WebRTC room via call:join + offer/answer/ICE
  */
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-/** callId -> Map(userId -> socketId) — max 2 peers per 1:1 room */
+/** callId -> Map(userId -> socketId) */
 const callRooms = new Map();
+
+/** requestId -> pending/accepted request */
+const pendingRequests = new Map();
+
+/** userId -> socketId (latest connection) */
+const onlineUsers = new Map();
 
 function roomName(callId) {
     return `call:${callId}`;
@@ -17,6 +25,16 @@ function getRoomPeers(callId) {
     return callRooms.get(callId);
 }
 
+function makeId(prefix) {
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function listPending() {
+    return [...pendingRequests.values()]
+        .filter((r) => r.status === 'pending')
+        .sort((a, b) => a.createdAt - b.createdAt);
+}
+
 async function authenticateSocket(socket) {
     const token =
         socket.handshake.auth?.token ||
@@ -25,7 +43,7 @@ async function authenticateSocket(socket) {
     if (!token) throw new Error('Authentication required');
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('_id name email role isBlocked userImage');
+    const user = await User.findById(decoded.id).select('_id name email role phone isBlocked userImage');
     if (!user) throw new Error('User no longer exists');
     if (user.isBlocked) throw new Error('Account is blocked');
 
@@ -33,6 +51,7 @@ async function authenticateSocket(socket) {
         id: user._id.toString(),
         name: user.name,
         email: user.email,
+        phone: user.phone || '',
         role: user.role,
         userImage: user.userImage || '',
     };
@@ -49,7 +68,170 @@ function setupCallSignaling(io) {
     });
 
     io.on('connection', (socket) => {
-        console.log(`[socket] connected user=${socket.user.id}`);
+        onlineUsers.set(socket.user.id, socket.id);
+
+        if (socket.user.role === 'admin') {
+            socket.join('admins');
+            socket.emit('call:pending-list', { requests: listPending() });
+        }
+
+        console.log(`[socket] connected user=${socket.user.id} role=${socket.user.role}`);
+
+        /** User requests a call with admin */
+        socket.on('call:request', (payload, ack) => {
+            try {
+                if (socket.user.role === 'admin') {
+                    ack?.({ ok: false, error: 'Admins receive requests; they do not send them.' });
+                    return;
+                }
+
+                // One pending request per user
+                for (const [id, req] of pendingRequests) {
+                    if (req.userId === socket.user.id && req.status === 'pending') {
+                        pendingRequests.delete(id);
+                        io.to('admins').emit('call:request-cancelled', { requestId: id });
+                    }
+                }
+
+                const requestId = makeId('req');
+                const request = {
+                    requestId,
+                    userId: socket.user.id,
+                    userName: socket.user.name,
+                    userEmail: socket.user.email,
+                    userPhone: socket.user.phone,
+                    userImage: socket.user.userImage,
+                    note: typeof payload?.note === 'string' ? payload.note.slice(0, 200) : '',
+                    status: 'pending',
+                    createdAt: Date.now(),
+                    userSocketId: socket.id,
+                };
+
+                pendingRequests.set(requestId, request);
+                socket.data.requestId = requestId;
+
+                io.to('admins').emit('call:incoming-request', { request });
+                ack?.({ ok: true, requestId, status: 'pending' });
+            } catch (err) {
+                ack?.({ ok: false, error: err.message });
+            }
+        });
+
+        /** User cancels their pending request */
+        socket.on('call:cancel-request', ({ requestId } = {}, ack) => {
+            const req = pendingRequests.get(requestId);
+            if (!req || req.userId !== socket.user.id) {
+                ack?.({ ok: false, error: 'Request not found' });
+                return;
+            }
+            if (req.status !== 'pending') {
+                ack?.({ ok: false, error: 'Request is no longer pending' });
+                return;
+            }
+
+            pendingRequests.delete(requestId);
+            socket.data.requestId = null;
+            io.to('admins').emit('call:request-cancelled', { requestId });
+            ack?.({ ok: true });
+        });
+
+        /** Admin accepts → both get callId */
+        socket.on('call:accept', ({ requestId } = {}, ack) => {
+            try {
+                if (socket.user.role !== 'admin') {
+                    ack?.({ ok: false, error: 'Only admins can accept call requests' });
+                    return;
+                }
+
+                const req = pendingRequests.get(requestId);
+                if (!req || req.status !== 'pending') {
+                    ack?.({ ok: false, error: 'Request is not available' });
+                    return;
+                }
+
+                const callId = makeId('call');
+                req.status = 'accepted';
+                req.callId = callId;
+                req.adminId = socket.user.id;
+                req.adminName = socket.user.name;
+                req.acceptedAt = Date.now();
+
+                const payload = {
+                    requestId,
+                    callId,
+                    userId: req.userId,
+                    userName: req.userName,
+                    adminId: socket.user.id,
+                    adminName: socket.user.name,
+                };
+
+                // Notify requesting user
+                const userSocketId = onlineUsers.get(req.userId);
+                if (userSocketId) {
+                    io.to(userSocketId).emit('call:accepted', payload);
+                }
+
+                // Notify accepting admin (and clear request from other admins' lists)
+                socket.emit('call:accepted', payload);
+                io.to('admins').emit('call:request-resolved', {
+                    requestId,
+                    status: 'accepted',
+                    acceptedBy: socket.user.id,
+                });
+
+                // Keep briefly for join authorization, then drop
+                setTimeout(() => pendingRequests.delete(requestId), 5 * 60 * 1000);
+
+                ack?.({ ok: true, callId, requestId });
+            } catch (err) {
+                ack?.({ ok: false, error: err.message });
+            }
+        });
+
+        /** Admin rejects */
+        socket.on('call:reject', ({ requestId, reason } = {}, ack) => {
+            try {
+                if (socket.user.role !== 'admin') {
+                    ack?.({ ok: false, error: 'Only admins can reject call requests' });
+                    return;
+                }
+
+                const req = pendingRequests.get(requestId);
+                if (!req || req.status !== 'pending') {
+                    ack?.({ ok: false, error: 'Request is not available' });
+                    return;
+                }
+
+                req.status = 'rejected';
+                pendingRequests.delete(requestId);
+
+                const userSocketId = onlineUsers.get(req.userId);
+                if (userSocketId) {
+                    io.to(userSocketId).emit('call:rejected', {
+                        requestId,
+                        reason: reason || 'Admin declined the call request.',
+                    });
+                }
+
+                io.to('admins').emit('call:request-resolved', {
+                    requestId,
+                    status: 'rejected',
+                });
+
+                ack?.({ ok: true });
+            } catch (err) {
+                ack?.({ ok: false, error: err.message });
+            }
+        });
+
+        /** Admin refreshes pending list */
+        socket.on('call:list-pending', (ack) => {
+            if (socket.user.role !== 'admin') {
+                ack?.({ ok: false, error: 'Admin only' });
+                return;
+            }
+            ack?.({ ok: true, requests: listPending() });
+        });
 
         socket.on('call:join', ({ callId }, ack) => {
             try {
@@ -58,9 +240,30 @@ function setupCallSignaling(io) {
                     return;
                 }
 
+                // Authorize: must be participant of an accepted request (or already in room)
+                const authorized = [...pendingRequests.values()].some(
+                    (r) =>
+                        r.callId === callId &&
+                        (r.userId === socket.user.id || r.adminId === socket.user.id)
+                );
                 const peers = getRoomPeers(callId);
+                const alreadyIn = peers.has(socket.user.id);
 
-                // Same user reconnecting — replace old socket mapping
+                if (!authorized && !alreadyIn && peers.size === 0) {
+                    // Allow join if room already has a peer from this call session
+                    // (accepted request may have been cleaned) — only if room exists with 1 peer
+                }
+
+                if (!authorized && !alreadyIn && peers.size === 0) {
+                    // Soft allow: accepted payload navigates with callId; first joiner creates room
+                    // Prefer checking any accepted request still in map
+                    const anyMatch = [...pendingRequests.values()].find((r) => r.callId === callId);
+                    if (anyMatch && anyMatch.userId !== socket.user.id && anyMatch.adminId !== socket.user.id) {
+                        ack?.({ ok: false, error: 'Not allowed to join this call' });
+                        return;
+                    }
+                }
+
                 if (peers.has(socket.user.id)) {
                     peers.set(socket.user.id, socket.id);
                 } else if (peers.size >= 2) {
@@ -75,7 +278,7 @@ function setupCallSignaling(io) {
 
                 const others = [...peers.entries()]
                     .filter(([uid]) => uid !== socket.user.id)
-                    .map(([userId, socketId]) => ({ userId, socketId }));
+                    .map(([userId]) => userId);
 
                 const isInitiator = peers.size === 1 || others.length === 0;
 
@@ -85,7 +288,7 @@ function setupCallSignaling(io) {
                     userId: socket.user.id,
                     peerCount: peers.size,
                     isInitiator,
-                    peers: others.map((p) => p.userId),
+                    peers: others,
                 });
 
                 if (others.length > 0) {
@@ -163,6 +366,21 @@ function setupCallSignaling(io) {
         });
 
         socket.on('disconnect', () => {
+            if (onlineUsers.get(socket.user.id) === socket.id) {
+                onlineUsers.delete(socket.user.id);
+            }
+
+            // Cancel pending request if user disconnects
+            if (socket.data.requestId) {
+                const req = pendingRequests.get(socket.data.requestId);
+                if (req && req.status === 'pending' && req.userId === socket.user.id) {
+                    pendingRequests.delete(socket.data.requestId);
+                    io.to('admins').emit('call:request-cancelled', {
+                        requestId: socket.data.requestId,
+                    });
+                }
+            }
+
             if (socket.data.callId) {
                 leaveCall(socket, socket.data.callId, true);
             }

@@ -90,6 +90,7 @@ import WarrantyInfo from './modules/user/pages/WarrantyInfo';
 import CustomizationPage from './modules/user/pages/CustomizationPage';
 import VideoCallLobby from './modules/user/pages/VideoCallLobby';
 import VideoCallRoom from './modules/user/pages/VideoCallRoom';
+import AdminVideoCalls from './modules/admin/pages/AdminVideoCalls';
 
 const ScrollToTop = () => {
   const { pathname, key } = useLocation();
@@ -197,6 +198,7 @@ const AppContent = () => {
                     <Route path="/inventory/reports" element={<InventoryReportsPage />} />
                     <Route path="/users" element={<UserManagement />} />
                     <Route path="/users/view/:id" element={<UserView />} />
+                    <Route path="/video-calls" element={<AdminVideoCalls />} />
                     <Route path="/suggestions" element={<SuggestionList />} />
                     <Route path="/subscriptions" element={<SubscriptionList />} />
                     <Route path="/reviews" element={<ReviewModeration />} />
