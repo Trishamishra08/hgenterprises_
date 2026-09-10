@@ -46,5 +46,7 @@ export default function VideoCallRoom() {
         );
     }
 
-    return <VideoCall callId={callId} onLeavePath="/video-call" />;
+    const leavePath = user.role === 'admin' ? '/admin/video-calls' : '/video-call';
+
+    return <VideoCall callId={callId} onLeavePath={leavePath} />;
 }

@@ -1,49 +1,96 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Video, Copy, LogIn } from 'lucide-react';
+import { Video, LogIn, Loader2, PhoneOff, Clock } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-
-function createCallId() {
-    const rand = Math.random().toString(36).slice(2, 8);
-    return `call_${Date.now().toString(36)}_${rand}`;
-}
+import { getSocket } from '../../../utils/socket';
 
 /**
- * Lobby: create or join a 1-to-1 call room (requires login).
+ * User: send video-call request to admin and wait for accept/reject.
+ * Admins are redirected to the admin incoming-calls inbox.
  */
 export default function VideoCallLobby() {
     const { user, loading } = useAuth();
     const navigate = useNavigate();
-    const [joinId, setJoinId] = useState('');
-    const [copied, setCopied] = useState(false);
-    const [createdId, setCreatedId] = useState('');
+    const [status, setStatus] = useState('idle'); // idle | requesting | waiting | rejected
+    const [requestId, setRequestId] = useState(null);
+    const [note, setNote] = useState('');
+    const [error, setError] = useState('');
+    const [rejectReason, setRejectReason] = useState('');
 
-    const shareUrl = useMemo(() => {
-        if (!createdId) return '';
-        return `${window.location.origin}/call/${createdId}`;
-    }, [createdId]);
+    useEffect(() => {
+        if (!loading && user?.role === 'admin') {
+            navigate('/admin/video-calls', { replace: true });
+        }
+    }, [user, loading, navigate]);
 
-    const startNewCall = () => {
-        const id = createCallId();
-        setCreatedId(id);
-        navigate(`/call/${id}`);
-    };
+    useEffect(() => {
+        if (!user || user.role === 'admin') return undefined;
 
-    const joinExisting = (e) => {
-        e.preventDefault();
-        const id = joinId.trim();
-        if (!id) return;
-        navigate(`/call/${id.startsWith('call_') ? id : `call_${id}`}`);
-    };
-
-    const copyLink = async () => {
-        if (!shareUrl) return;
+        let socket;
         try {
-            await navigator.clipboard.writeText(shareUrl);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            socket = getSocket();
+        } catch (err) {
+            setError(err.message);
+            return undefined;
+        }
+
+        const onAccepted = ({ callId }) => {
+            if (!callId) return;
+            setStatus('idle');
+            navigate(`/call/${callId}`, { replace: true });
+        };
+
+        const onRejected = ({ reason }) => {
+            setStatus('rejected');
+            setRequestId(null);
+            setRejectReason(reason || 'Admin declined the call request.');
+        };
+
+        socket.on('call:accepted', onAccepted);
+        socket.on('call:rejected', onRejected);
+
+        return () => {
+            socket.off('call:accepted', onAccepted);
+            socket.off('call:rejected', onRejected);
+        };
+    }, [user, navigate]);
+
+    const sendRequest = () => {
+        setError('');
+        setRejectReason('');
+        setStatus('requesting');
+
+        try {
+            const socket = getSocket();
+            socket.emit('call:request', { note: note.trim() }, (res) => {
+                if (!res?.ok) {
+                    setStatus('idle');
+                    setError(res?.error || 'Could not send request');
+                    return;
+                }
+                setRequestId(res.requestId);
+                setStatus('waiting');
+            });
+        } catch (err) {
+            setStatus('idle');
+            setError(err.message || 'Could not connect');
+        }
+    };
+
+    const cancelRequest = () => {
+        if (!requestId) {
+            setStatus('idle');
+            return;
+        }
+        try {
+            const socket = getSocket();
+            socket.emit('call:cancel-request', { requestId }, () => {
+                setRequestId(null);
+                setStatus('idle');
+            });
         } catch (_) {
-            /* ignore */
+            setRequestId(null);
+            setStatus('idle');
         }
     };
 
@@ -61,7 +108,7 @@ export default function VideoCallLobby() {
                 <Video className="w-12 h-12 mx-auto text-[#C5A059] mb-4" />
                 <h1 className="font-serif text-3xl text-[#3E2723] mb-2">Video Call</h1>
                 <p className="text-sm text-[#3E2723]/70 mb-6">
-                    Please sign in to start or join a 1-to-1 video consultation.
+                    Sign in to request a live video consultation with our team.
                 </p>
                 <Link
                     to="/login"
@@ -74,6 +121,10 @@ export default function VideoCallLobby() {
         );
     }
 
+    if (user.role === 'admin') {
+        return null;
+    }
+
     return (
         <div className="max-w-xl mx-auto px-4 py-12 md:py-16">
             <div className="text-center mb-10">
@@ -82,59 +133,72 @@ export default function VideoCallLobby() {
                     Video Call
                 </h1>
                 <p className="text-sm text-[#3E2723]/70">
-                    Start a private 1-to-1 call and share the link with the other person.
+                    Send a request to HG Enterprises admin. When they accept, your call starts automatically.
                 </p>
             </div>
 
-            <div className="bg-white border border-[#EBCDD0] rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
-                <div>
-                    <h2 className="text-sm font-semibold text-[#3E2723] mb-3">Start a new call</h2>
-                    <button
-                        type="button"
-                        onClick={startNewCall}
-                        className="w-full py-3 rounded-full bg-[#3E2723] text-white text-sm font-medium hover:bg-[#4a322c] transition-colors"
-                    >
-                        Create call room
-                    </button>
-                </div>
-
-                <div className="relative flex items-center gap-3 text-xs text-[#3E2723]/40">
-                    <div className="flex-1 h-px bg-[#EBCDD0]" />
-                    or join
-                    <div className="flex-1 h-px bg-[#EBCDD0]" />
-                </div>
-
-                <form onSubmit={joinExisting}>
-                    <h2 className="text-sm font-semibold text-[#3E2723] mb-3">Join with call ID</h2>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                            value={joinId}
-                            onChange={(e) => setJoinId(e.target.value)}
-                            placeholder="call_..."
-                            className="flex-1 px-4 py-2.5 rounded-full border border-[#EBCDD0] text-sm outline-none focus:border-[#C5A059] bg-[#FDF5F6]"
-                        />
-                        <button
-                            type="submit"
-                            className="px-6 py-2.5 rounded-full bg-[#C5A059] text-[#3E2723] text-sm font-semibold hover:bg-[#d4b06e] transition-colors"
-                        >
-                            Join
-                        </button>
+            <div className="bg-white border border-[#EBCDD0] rounded-2xl p-6 md:p-8 shadow-sm space-y-5">
+                {status === 'waiting' || status === 'requesting' ? (
+                    <div className="text-center py-6 space-y-4">
+                        <div className="mx-auto w-14 h-14 rounded-full bg-[#FDF5F6] flex items-center justify-center">
+                            {status === 'requesting' ? (
+                                <Loader2 className="w-7 h-7 text-[#C5A059] animate-spin" />
+                            ) : (
+                                <Clock className="w-7 h-7 text-[#C5A059] animate-pulse" />
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-base font-medium text-[#3E2723]">
+                                {status === 'requesting' ? 'Sending request...' : 'Waiting for admin...'}
+                            </p>
+                            <p className="text-sm text-[#3E2723]/60 mt-1">
+                                Please keep this page open. You will join the call when an admin accepts.
+                            </p>
+                        </div>
+                        {status === 'waiting' && (
+                            <button
+                                type="button"
+                                onClick={cancelRequest}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#EBCDD0] text-sm text-[#3E2723] hover:bg-[#FDF5F6] transition-colors"
+                            >
+                                <PhoneOff className="w-4 h-4" /> Cancel request
+                            </button>
+                        )}
                     </div>
-                </form>
+                ) : (
+                    <>
+                        {status === 'rejected' && (
+                            <div className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
+                                {rejectReason}
+                            </div>
+                        )}
 
-                {createdId && (
-                    <div className="rounded-xl bg-[#FDF5F6] border border-[#EBCDD0] p-4">
-                        <p className="text-xs text-[#3E2723]/60 mb-1">Share this link</p>
-                        <p className="text-sm break-all text-[#3E2723] mb-3">{shareUrl}</p>
+                        <div>
+                            <label className="block text-sm font-semibold text-[#3E2723] mb-2">
+                                Message (optional)
+                            </label>
+                            <textarea
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                rows={3}
+                                maxLength={200}
+                                placeholder="e.g. Need help choosing a ring size"
+                                className="w-full px-4 py-3 rounded-xl border border-[#EBCDD0] text-sm outline-none focus:border-[#C5A059] bg-[#FDF5F6] resize-none"
+                            />
+                        </div>
+
+                        {error && (
+                            <p className="text-sm text-red-600">{error}</p>
+                        )}
+
                         <button
                             type="button"
-                            onClick={copyLink}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#6b252c]"
+                            onClick={sendRequest}
+                            className="w-full py-3 rounded-full bg-[#3E2723] text-white text-sm font-medium hover:bg-[#4a322c] transition-colors"
                         >
-                            <Copy className="w-3.5 h-3.5" />
-                            {copied ? 'Copied' : 'Copy link'}
+                            Request call with admin
                         </button>
-                    </div>
+                    </>
                 )}
             </div>
         </div>

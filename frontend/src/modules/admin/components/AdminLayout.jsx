@@ -5,7 +5,7 @@ import {
     Bell, ChevronRight, ChevronDown, Star, HelpCircle, LogOut, Menu, X, ListTree,
     FileText, MessageSquare, Ticket, Settings, Plus, List, BookOpen,
     Clock, RefreshCw, RefreshCcw, RotateCcw, Boxes, ClipboardList, MapPin, Truck, CheckCircle2, XCircle,
-    AlertTriangle, FileBarChart, Percent
+    AlertTriangle, FileBarChart, Percent, Video
 } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import logo from '../../user/assets/logo_final.jpg';
@@ -70,6 +70,7 @@ const AdminLayout = ({ children }) => {
             ]
         },
         { name: 'Users', icon: Users, path: '/admin/users' },
+        { name: 'Video Call', icon: Video, path: '/admin/video-calls' },
         { name: 'Suggestions', icon: MessageSquare, path: '/admin/suggestions' },
         { name: 'Reviews', icon: Star, path: '/admin/reviews' },
         { name: 'Banners', icon: ImageIcon, path: '/admin/banners' },

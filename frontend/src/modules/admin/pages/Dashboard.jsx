@@ -5,7 +5,7 @@ import {
     Users, IndianRupee, ListTree, Package, ShoppingBag,
     Truck, MapPin, XCircle, Activity, Ban, BatteryWarning,
     RefreshCw, CheckCircle2, MessageSquare, TrendingUp,
-    Calendar, ArrowUpRight, Diamond, Crown, Sparkles, Settings, PenTool
+    Calendar, ArrowUpRight, Diamond, Crown, Sparkles, Settings, PenTool, Video
 } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -59,7 +59,7 @@ const AdminDashboard = () => {
         { label: 'PENDING ORDERS', icon: Clock, bg: 'bg-[#FDFBF7]', text: 'text-primary', path: '/admin/orders?status=pending' },
         { label: 'CHECK RETURNS', icon: RotateCcw, bg: 'bg-[#FDFBF7]', text: 'text-primary', path: '/admin/returns' },
         { label: 'STOCK ALERTS', icon: AlertTriangle, bg: 'bg-red-50', text: 'text-red-600', path: '/admin/inventory/alerts' },
-        { label: 'BANNERS', icon: ImageIcon, bg: 'bg-[#FDFBF7]', text: 'text-primary', path: '/admin/banners' },
+        { label: 'VIDEO CALL', icon: Video, bg: 'bg-[#FDFBF7]', text: 'text-primary', path: '/admin/video-calls' },
     ];
 
     // Calculate Stats
