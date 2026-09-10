@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Heart, ShoppingBag, User, Store, Menu, X, Bell, ChevronDown, ChevronRight, Home, Gift, Coins, Plus, Minus, MessageCircle, Phone } from 'lucide-react';
+import { Search, Heart, ShoppingBag, User, Store, Menu, X, Bell, ChevronDown, ChevronRight, Home, Gift, Coins, Plus, Minus, MessageCircle, Video } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import hgLogo from '../assets/hg_logo_gold.png';
 import hgLogoPremium from '../assets/logo_final.jpg';
@@ -335,6 +335,22 @@ const Navbar = () => {
                             </button>
 
                             <RecentlyViewedDropdown />
+
+                            <Link
+                                to="/video-call"
+                                aria-label="Start video call"
+                                title="Video Call"
+                                className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors"
+                            >
+                                <Video className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
+                            </Link>
+
+                            <Link
+                                to="/video-call"
+                                className="hidden xl:inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full border border-[#C5A059]/50 text-[#C5A059] text-[10px] font-semibold tracking-wide uppercase hover:bg-[#C5A059]/15 transition-colors"
+                            >
+                                Video Call
+                            </Link>
 
                             <Link to="/notifications" aria-label="View notifications" className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors">
                                 <Bell className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
@@ -843,6 +859,7 @@ const Navbar = () => {
                                 { name: "BLOG", path: "/blogs" },
                                 { name: "OFFERS", path: "/offers" },
                                 { name: "SHOP", path: "/shop" },
+                                { name: "VIDEO CALL", path: "/video-call" },
                                 { name: "CONTACT US", path: "/help" },
                                 { name: "TRACK ORDER", path: "/profile/orders" }
                             ])
@@ -1048,7 +1065,7 @@ const Navbar = () => {
                                 <div className="px-5 pb-6 space-y-0 flex flex-col border-t border-gray-100 pt-2">
                                     {[
                                         { name: "Recently Viewed", path: "/recently-viewed", color: "text-[#FF6B6B]" },
-                                        { name: "Video Call Cart", path: "/video-call" },
+                                        { name: "Video Call", path: "/video-call", color: "text-[#C5A059]" },
                                         { name: "Track Order", path: "/profile/orders" },
                                         { name: "Jewellery Guide", path: "/guide" },
                                         { name: "Privacy Policy", path: "/privacy" },
@@ -1072,10 +1089,14 @@ const Navbar = () => {
                                     <MessageCircle className="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" />
                                     <span className="text-[10px] text-gray-500 font-medium group-hover:text-primary transition-colors">Chat</span>
                                 </button>
-                                <button className="flex flex-col items-center gap-1 group flex-1">
-                                    <Phone className="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" />
-                                    <span className="text-[10px] text-gray-500 font-medium group-hover:text-primary transition-colors">Call</span>
-                                </button>
+                                <Link
+                                    to="/video-call"
+                                    onClick={() => toggleMenu(false)}
+                                    className="flex flex-col items-center gap-1 group flex-1"
+                                >
+                                    <Video className="w-5 h-5 text-gray-500 group-hover:text-primary transition-colors" />
+                                    <span className="text-[10px] text-gray-500 font-medium group-hover:text-primary transition-colors">Video Call</span>
+                                </Link>
                             </div>
                         </motion.div>
                     </>
