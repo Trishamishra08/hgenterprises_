@@ -1,24 +1,79 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Package, ShoppingCart, Users, User, Image as ImageIcon,
     Bell, ChevronRight, ChevronDown, Star, HelpCircle, LogOut, Menu, X, ListTree,
     FileText, MessageSquare, Ticket, Settings, Plus, List, BookOpen,
     Clock, RefreshCw, RefreshCcw, RotateCcw, Boxes, ClipboardList, MapPin, Truck, CheckCircle2, XCircle,
-    AlertTriangle, FileBarChart, Percent, Video
+    AlertTriangle, FileBarChart, Percent, Video, Calendar
 } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
+import api from '../../../utils/api';
+import { getSocket } from '../../../utils/socket';
+import { playAdminIncomingRing, unlockAdminRingtone } from '../../../utils/adminRingtone';
 import logo from '../../user/assets/logo_final.jpg';
 import logoName from '../../user/assets/logo_final.jpg';
 
 const AdminLayout = ({ children }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
+    const [vcPendingCount, setVcPendingCount] = useState(0);
+    const [incomingAlert, setIncomingAlert] = useState(null);
     const location = useLocation();
     const navigate = useNavigate();
     const { orders } = useShop();
 
     const allOrders = orders || [];
     const getCount = (status) => allOrders.filter(o => o.status?.toLowerCase() === status.toLowerCase()).length;
+
+    useEffect(() => {
+        let alive = true;
+        const fetchPending = async () => {
+            try {
+                const { data } = await api.get('/video-calls/bookings/pending-count');
+                if (alive) setVcPendingCount(data.count || 0);
+            } catch (_) {
+                /* ignore */
+            }
+        };
+        fetchPending();
+        const id = setInterval(fetchPending, 20000);
+        return () => {
+            alive = false;
+            clearInterval(id);
+        };
+    }, [location.pathname]);
+
+    // Unlock audio after first admin gesture (required by browsers / production)
+    useEffect(() => {
+        const unlock = () => unlockAdminRingtone();
+        window.addEventListener('pointerdown', unlock, { once: true });
+        window.addEventListener('keydown', unlock, { once: true });
+        return () => {
+            window.removeEventListener('pointerdown', unlock);
+            window.removeEventListener('keydown', unlock);
+        };
+    }, []);
+
+    // Realtime ringtone whenever any admin is logged into the panel
+    useEffect(() => {
+        let socket;
+        try {
+            socket = getSocket();
+        } catch (_) {
+            return undefined;
+        }
+
+        const onNewRequest = (payload) => {
+            setVcPendingCount((c) => c + 1);
+            setIncomingAlert(payload || { contactName: 'Customer' });
+            playAdminIncomingRing();
+        };
+
+        socket.on('video-call:new-request', onNewRequest);
+        return () => {
+            socket.off('video-call:new-request', onNewRequest);
+        };
+    }, []);
 
     const menuItems = [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
@@ -70,7 +125,20 @@ const AdminLayout = ({ children }) => {
             ]
         },
         { name: 'Users', icon: Users, path: '/admin/users' },
-        { name: 'Video Call', icon: Video, path: '/admin/video-calls' },
+        {
+            name: 'Video Call',
+            icon: Video,
+            path: '/admin/video-calls',
+            badge: vcPendingCount,
+            subItems: [
+                { name: 'Add Time Slots', path: '/admin/video-calls?tab=slots', icon: Calendar },
+                {
+                    name: vcPendingCount > 0 ? `User Requests (${vcPendingCount})` : 'User Requests',
+                    path: '/admin/video-calls?tab=requests',
+                    icon: Bell,
+                },
+            ],
+        },
         { name: 'Suggestions', icon: MessageSquare, path: '/admin/suggestions' },
         { name: 'Reviews', icon: Star, path: '/admin/reviews' },
         { name: 'Banners', icon: ImageIcon, path: '/admin/banners' },
@@ -208,7 +276,7 @@ const AdminLayout = ({ children }) => {
                                 <div key={item.name} className="flex flex-col px-2">
                                     <button
                                         onClick={() => handleMenuClick(item)}
-                                        className={`flex items-center gap-3 px-4 py-2 transition-all w-full text-left rounded-none group ${isActive
+                                        className={`relative flex items-center gap-3 px-4 py-2 transition-all w-full text-left rounded-none group ${isActive
                                             ? 'bg-white/5 text-gold border-r-2 border-gold font-black'
                                             : 'text-white/50 hover:bg-white/5 hover:text-white'
                                             }`}
@@ -217,12 +285,20 @@ const AdminLayout = ({ children }) => {
                                         {(isSidebarOpen || window.innerWidth <= 1024) && (
                                             <>
                                                 <span className={`text-[10px] uppercase tracking-widest flex-1 font-outfit ${isActive ? 'text-gold' : ''}`}>{item.name}</span>
+                                                {item.badge > 0 && (
+                                                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                                                        {item.badge > 9 ? '9+' : item.badge}
+                                                    </span>
+                                                )}
                                                 {item.subItems && (
                                                     <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
                                                         <ChevronDown className="w-3 h-3 text-white/30" />
                                                     </div>
                                                 )}
                                             </>
+                                        )}
+                                        {!isSidebarOpen && window.innerWidth > 1024 && item.badge > 0 && (
+                                            <span className="absolute right-2 top-2 w-2 h-2 rounded-full bg-red-500" />
                                         )}
                                     </button>
 
@@ -294,6 +370,38 @@ const AdminLayout = ({ children }) => {
                         </div>
                     </div>
                 </header>
+
+                {incomingAlert && (
+                    <div className="sticky top-14 z-30 mx-3 lg:mx-5 mt-3 rounded-xl border border-[#C5A059] bg-[#3E2723] text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                        <div>
+                            <p className="text-xs uppercase tracking-widest text-[#C5A059] font-bold">Incoming video call request</p>
+                            <p className="text-sm mt-0.5">
+                                {incomingAlert.contactName || 'Customer'}
+                                {incomingAlert.when ? ` · ${incomingAlert.when}` : ''}
+                                {incomingAlert.productCount ? ` · ${incomingAlert.productCount} designs` : ''}
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIncomingAlert(null);
+                                    navigate('/admin/video-calls?tab=requests');
+                                }}
+                                className="px-4 py-2 rounded-full bg-[#C5A059] text-[#3E2723] text-xs font-bold"
+                            >
+                                View request
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIncomingAlert(null)}
+                                className="px-3 py-2 rounded-full border border-white/20 text-xs"
+                            >
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Sequential Page Content */}
                 <div className="bg-[#FDF5F6]">

@@ -25,10 +25,12 @@ const userSchema = new mongoose.Schema({
     usedCoupons: [{ type: String }],
     addresses: [addressSchema],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+    videoCallCart: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     notifications: [{
         title: { type: String, required: true },
         message: { type: String, required: true },
-        type: { type: String, enum: ['order', 'offer', 'account'], default: 'account' },
+        type: { type: String, enum: ['order', 'offer', 'account', 'video_call'], default: 'account' },
+        link: { type: String, default: '' },
         read: { type: Boolean, default: false },
         createdAt: { type: Date, default: Date.now }
     }],

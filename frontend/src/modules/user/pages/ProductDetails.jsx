@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import watermarkLogo from '../../../assets/WhatsApp_Image_2026-03-12_at_1.38.09_PM__1_-removebg-preview.png';
 import PopularSearchTags from '../components/PopularSearchTags';
 import { getProductDepartment, buildPopularSearchLink, parseTagsString, getDepartmentLabel, resolveDepartmentFromCategory } from '../data/popularSearchData';
@@ -623,6 +624,32 @@ const ProductDetails = () => {
                 }
             }
 
+            // QR code → opens this product's page when scanned
+            const productId = product?.id || product?._id || id;
+            const productUrl = `${window.location.origin}/product/${productId}`;
+            const qrSize = 28;
+            const qrX = imgColX + (imgW - qrSize) / 2;
+            const qrY = imgColY + imgH + 4;
+            try {
+                const qrDataUrl = await QRCode.toDataURL(productUrl, {
+                    width: 256,
+                    margin: 1,
+                    color: { dark: '#1a1a1a', light: '#ffffff' },
+                    errorCorrectionLevel: 'M',
+                });
+                doc.setDrawColor(225, 200, 205);
+                doc.setLineWidth(0.3);
+                doc.setFillColor(255, 255, 255);
+                doc.rect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 'FD');
+                doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+                doc.setFont('Helvetica', 'normal');
+                doc.setFontSize(6.5);
+                doc.setTextColor(fR, fG, fB);
+                doc.text('Scan to view product online', imgColX + imgW / 2, qrY + qrSize + 4, { align: 'center' });
+            } catch (qrErr) {
+                console.warn('QR generation skipped:', qrErr);
+            }
+
             // Right col: description
             const rightColX = imgColX + imgW + 6;
             const rightColW = pageW - rightColX - 14;
@@ -707,8 +734,9 @@ const ProductDetails = () => {
                 rightY = doc.lastAutoTable.finalY + 4;
             }
 
-            // ── FEATURES SECTION (full width, below image + table) ────
-            let featY = Math.max(imgColY + imgH + 6, rightY + 2);
+            // ── FEATURES SECTION (full width, below image/QR + table) ────
+            const leftColBottom = imgColY + imgH + qrSize + 12; // image + QR + label gap
+            let featY = Math.max(leftColBottom, rightY + 2);
 
             doc.setFont('Helvetica', 'bold');
             doc.setFontSize(10);
@@ -1139,6 +1167,45 @@ const ProductDetails = () => {
                             </div>
 
                             <p className="text-[11px] font-medium text-[#7a7a7a]">MRP incl. of all taxes</p>
+
+                            <div className="flex items-center gap-2 pt-1">
+                                    <Video className="w-4 h-4 text-[#2E7D32]" />
+                                    <span className="text-[12px] text-[#333]">Schedule video call</span>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const productId = product._id || product.id;
+                                            const dept = getProductDepartment(product.department || product.category || product.name || '');
+                                            const snapshot = {
+                                                product: productId,
+                                                name: product.name,
+                                                image: product.image || '',
+                                                code: String(productId).slice(-8),
+                                                metal: '',
+                                                stone: '',
+                                                department: dept === 'machines' || dept === 'tools' ? dept : 'jewellery',
+                                                category: product.category || '',
+                                            };
+                                            try {
+                                                if (user && user.role !== 'admin') {
+                                                    await api.post('/video-calls/cart', { productId });
+                                                } else {
+                                                    const { addGuestVcItem } = await import('../../../utils/videoCallCart');
+                                                    addGuestVcItem(snapshot);
+                                                }
+                                                showNotification('Added to Video Call Cart');
+                                                navigate('/video-call-cart');
+                                            } catch (err) {
+                                                showNotification(
+                                                    err.response?.data?.message || err.message || 'Could not add to video call cart'
+                                                );
+                                            }
+                                        }}
+                                        className="text-[12px] font-semibold text-[#2C6E9E] hover:underline"
+                                    >
+                                        Book Now
+                                    </button>
+                                </div>
 
                             {appliedCoupon && (
                                 <div className="flex mt-1">

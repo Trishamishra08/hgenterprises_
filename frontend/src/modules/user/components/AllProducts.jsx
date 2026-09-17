@@ -49,9 +49,11 @@ const AllProducts = () => {
                 </div>
 
                 {/* Grid - Using the standard ProductCard component with tighter gaps */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4 lg:gap-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4 lg:gap-5 items-stretch">
                     {displayProducts.map((product) => (
-                        <ProductCard key={product.id} product={product} />
+                        <div key={product.id} className="h-full">
+                            <ProductCard product={product} />
+                        </div>
                     ))}
                 </div>
 

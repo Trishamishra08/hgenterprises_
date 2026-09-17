@@ -1080,9 +1080,18 @@ const Shop = () => {
                     <div className="pt-2 pb-4 px-2 md:p-4 lg:px-4 lg:pt-0 lg:pb-6">
 
                         {filteredProducts.length > 0 ? (
-                            <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3 gap-y-3 md:gap-y-4 pb-40">
+                            <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3 gap-y-3 md:gap-y-4 pb-40 items-stretch">
                                 {filteredProducts.map((product, idx) => (
-                                    <motion.div key={product.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-100px" }} transition={{ duration: 0.6, delay: (idx % 5) * 0.08, ease: "easeOut" }}><ProductCard product={product} /></motion.div>
+                                    <motion.div
+                                        key={product.id}
+                                        className="h-full"
+                                        initial={{ opacity: 0, y: 30 }}
+                                        whileInView={{ opacity: 1, y: 0 }}
+                                        viewport={{ once: true, margin: '-100px' }}
+                                        transition={{ duration: 0.6, delay: (idx % 5) * 0.08, ease: 'easeOut' }}
+                                    >
+                                        <ProductCard product={product} />
+                                    </motion.div>
                                 ))}
                             </div>
                         ) : (

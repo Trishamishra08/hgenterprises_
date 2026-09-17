@@ -90,6 +90,9 @@ import WarrantyInfo from './modules/user/pages/WarrantyInfo';
 import CustomizationPage from './modules/user/pages/CustomizationPage';
 import VideoCallLobby from './modules/user/pages/VideoCallLobby';
 import VideoCallRoom from './modules/user/pages/VideoCallRoom';
+import VideoCallCart from './modules/user/pages/VideoCallCart';
+import VideoCallSchedule from './modules/user/pages/VideoCallSchedule';
+import VideoCallBookings from './modules/user/pages/VideoCallBookings';
 import AdminVideoCalls from './modules/admin/pages/AdminVideoCalls';
 
 const ScrollToTop = () => {
@@ -159,6 +162,9 @@ const AppContent = () => {
             <Route path="/offers/:slug" element={<OfferLandingPage />} />
             <Route path="/offers" element={<OffersPage />} />
             <Route path="/video-call" element={<VideoCallLobby />} />
+            <Route path="/video-call-cart" element={<VideoCallCart />} />
+            <Route path="/video-call/schedule" element={<VideoCallSchedule />} />
+            <Route path="/video-call/bookings" element={<VideoCallBookings />} />
             <Route path="/call/:callId" element={<VideoCallRoom />} />
 
             {/* Admin Routes */}

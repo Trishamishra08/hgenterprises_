@@ -337,7 +337,7 @@ const Navbar = () => {
                             <RecentlyViewedDropdown />
 
                             <Link
-                                to="/video-call"
+                                to="/video-call-cart"
                                 aria-label="Start video call"
                                 title="Video Call"
                                 className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors"
@@ -346,7 +346,7 @@ const Navbar = () => {
                             </Link>
 
                             <Link
-                                to="/video-call"
+                                to="/video-call-cart"
                                 className="hidden xl:inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full border border-[#C5A059]/50 text-[#C5A059] text-[10px] font-semibold tracking-wide uppercase hover:bg-[#C5A059]/15 transition-colors"
                             >
                                 Video Call
@@ -859,7 +859,7 @@ const Navbar = () => {
                                 { name: "BLOG", path: "/blogs" },
                                 { name: "OFFERS", path: "/offers" },
                                 { name: "SHOP", path: "/shop" },
-                                { name: "VIDEO CALL", path: "/video-call" },
+                                { name: "VIDEO CALL", path: "/video-call-cart" },
                                 { name: "CONTACT US", path: "/help" },
                                 { name: "TRACK ORDER", path: "/profile/orders" }
                             ])
@@ -1065,7 +1065,7 @@ const Navbar = () => {
                                 <div className="px-5 pb-6 space-y-0 flex flex-col border-t border-gray-100 pt-2">
                                     {[
                                         { name: "Recently Viewed", path: "/recently-viewed", color: "text-[#FF6B6B]" },
-                                        { name: "Video Call", path: "/video-call", color: "text-[#C5A059]" },
+                                        { name: "Video Call", path: "/video-call-cart", color: "text-[#C5A059]" },
                                         { name: "Track Order", path: "/profile/orders" },
                                         { name: "Jewellery Guide", path: "/guide" },
                                         { name: "Privacy Policy", path: "/privacy" },
@@ -1090,7 +1090,7 @@ const Navbar = () => {
                                     <span className="text-[10px] text-gray-500 font-medium group-hover:text-primary transition-colors">Chat</span>
                                 </button>
                                 <Link
-                                    to="/video-call"
+                                    to="/video-call-cart"
                                     onClick={() => toggleMenu(false)}
                                     className="flex flex-col items-center gap-1 group flex-1"
                                 >

@@ -80,6 +80,7 @@ const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
 
 const offerRoutes = require('./routes/offerRoutes');
+const videoCallRoutes = require('./routes/videoCallRoutes');
 
 // Use Routes
 app.use('/api/products', productRoutes);
@@ -101,6 +102,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/inventory-reports', inventoryReportRoutes);
 app.use('/api/suggestions', suggestionRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/video-calls', videoCallRoutes);
 
 
 
@@ -124,6 +126,7 @@ const io = new Server(server, {
 });
 
 setupCallSignaling(io);
+app.set('io', io);
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

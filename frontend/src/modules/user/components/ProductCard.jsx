@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
-import { Heart, Star, ShoppingBag, Layers, Play } from 'lucide-react';
+import { Heart, Star, Play, Video } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { resolveCatalogImage } from '../data/catalogImages';
+import { useAuth } from '../../../context/AuthContext';
+import api from '../../../utils/api';
+import { addGuestVcItem } from '../../../utils/videoCallCart';
+import { getProductDepartment } from '../data/popularSearchData';
 
 const ProductCard = ({ product, isWishlistPage = false }) => {
-    const { addToCart, addToWishlist, removeFromWishlist, wishlist, cart, updateQuantity, removeFromCart } = useShop();
+    const navigate = useNavigate();
+    const { user } = useAuth();
+    const { addToCart, addToWishlist, removeFromWishlist, wishlist, cart, updateQuantity, removeFromCart, showNotification } = useShop();
     const [flying, setFlying] = useState(false);
     const [flyingType, setFlyingType] = useState('cart');
+    const [vcLoading, setVcLoading] = useState(false);
 
-    const cartItem = cart.find(item => item.id === product.id);
+    const productId = product.id || product._id;
+    const cartItem = cart.find((item) => item.id === productId || item.id === product.id);
 
-    const isWishlisted = wishlist.some(item => item.id === product.id);
+    const isWishlisted = wishlist.some((item) => item.id === productId || item.id === product.id);
     const hasDiscount = product.originalPrice && product.originalPrice > product.price;
 
     const handleAddToCart = (e) => {
@@ -32,7 +40,40 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
             addToWishlist(product);
             setTimeout(() => setFlying(false), 800);
         } else {
-            removeFromWishlist(product.id);
+            removeFromWishlist(productId);
+        }
+    };
+
+    const handleBookVideoCall = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (vcLoading) return;
+        setVcLoading(true);
+
+        const dept = getProductDepartment(product.department || product.category || product.name || '');
+        const snapshot = {
+            product: productId,
+            name: product.name,
+            image: product.image || '',
+            code: String(productId).slice(-8),
+            metal: '',
+            stone: '',
+            department: dept === 'machines' || dept === 'tools' ? dept : 'jewellery',
+            category: product.category || '',
+        };
+
+        try {
+            if (user && user.role !== 'admin') {
+                await api.post('/video-calls/cart', { productId });
+            } else {
+                addGuestVcItem(snapshot);
+            }
+            showNotification?.('Added to Video Call Cart');
+            navigate('/video-call-cart');
+        } catch (err) {
+            showNotification?.(err.response?.data?.message || err.message || 'Could not add to video call cart');
+        } finally {
+            setVcLoading(false);
         }
     };
 
@@ -41,14 +82,15 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
         product.name,
         product.department || product.category
     );
-    const secondaryImage = resolveCatalogImage(
-        product.hoverImage || (product.images && product.images[1]),
-        product.name,
-        product.department || product.category
-    ) || primaryImage;
+    const secondaryImage =
+        resolveCatalogImage(
+            product.hoverImage || (product.images && product.images[1]),
+            product.name,
+            product.department || product.category
+        ) || primaryImage;
 
     return (
-        <div className="group relative w-full flex flex-col bg-[#FAF8F5] rounded-xl overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-lg">
+        <div className="group relative w-full h-full flex flex-col bg-[#FAF8F5] rounded-xl overflow-hidden border border-gray-100 transition-all duration-300 hover:shadow-lg">
             <style>
                 {`
                     @keyframes flyToCart {
@@ -75,17 +117,16 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
                 />
             )}
 
-            {/* Image Container */}
-            <Link to={`/product/${product.id}`} className="relative w-full aspect-square bg-white overflow-hidden flex items-center justify-center">
-                
-                {/* Primary Image */}
+            {/* Image — fixed square so all cards share the same top edge */}
+            <Link
+                to={`/product/${productId}`}
+                className="relative w-full aspect-square shrink-0 bg-white overflow-hidden flex items-center justify-center"
+            >
                 <img
                     src={primaryImage}
                     alt={product.name}
                     className="absolute inset-0 w-full h-full object-contain bg-white transition-opacity duration-500 ease-in-out group-hover:opacity-0"
                 />
-
-                {/* Secondary Hover Image */}
                 <img
                     src={secondaryImage}
                     alt={`${product.name} alternate`}
@@ -96,39 +137,48 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
                     className="absolute inset-0 w-full h-full object-contain bg-white transition-all duration-500 ease-in-out opacity-0 group-hover:opacity-100"
                 />
 
-                {/* Wishlist Icon (Top Left Circle) */}
                 <button
                     onClick={handleWishlist}
                     className="absolute top-2 left-2 md:top-3 md:left-3 z-30 w-7 h-7 md:w-8 md:h-8 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100 transition-transform hover:scale-110 active:scale-95"
                 >
-                    <Heart className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isWishlisted ? 'fill-[#124935] text-[#124935]' : 'text-gray-400 hover:text-[#124935]'}`} strokeWidth={2} />
+                    <Heart
+                        className={`w-3.5 h-3.5 md:w-4 md:h-4 ${isWishlisted ? 'fill-[#3E2723] text-[#3E2723]' : 'text-gray-400 hover:text-[#3E2723]'}`}
+                        strokeWidth={2}
+                    />
                 </button>
-                
-                {/* Play Icon (Top Right Circle - decorative) */}
+
                 <div className="absolute top-2 right-2 md:top-3 md:right-3 z-30 w-7 h-7 md:w-8 md:h-8 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100">
                     <Play className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400 pl-0.5" strokeWidth={2} />
                 </div>
+
+                {/* Hover: BOOK VIDEO CALL (HG theme) */}
+                <button
+                    type="button"
+                    onClick={handleBookVideoCall}
+                    disabled={vcLoading}
+                    className="absolute bottom-3 right-3 z-30 inline-flex items-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-md bg-white border border-[#C5A059] text-[#3E2723] text-[9px] md:text-[10px] font-bold tracking-wide uppercase shadow-md opacity-0 translate-y-1 pointer-events-none transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto hover:bg-[#3E2723] hover:text-[#C5A059] hover:border-[#3E2723] disabled:opacity-50"
+                >
+                    <Video className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
+                    {vcLoading ? 'Adding...' : 'Book Video Call'}
+                </button>
             </Link>
 
-            {/* Content Container */}
-            <div className="p-2.5 md:p-3.5 flex flex-col bg-[#FAF8F5]">
-                
-                {/* Title & Rating Row */}
-                <div className="flex justify-between items-start mb-1 md:mb-2">
-                    <h3 className="font-sans text-gray-500 text-xs md:text-sm font-medium capitalize truncate pr-2">
-                        {product.name.toLowerCase()}
+            {/* Content — fixed structure so bottoms align */}
+            <div className="p-2.5 md:p-3.5 flex flex-col flex-1 min-h-[7.5rem] bg-[#FAF8F5]">
+                <div className="flex justify-between items-start gap-2 mb-2 min-h-[2.5rem]">
+                    <h3 className="font-sans text-gray-500 text-xs md:text-sm font-medium capitalize line-clamp-2 leading-snug flex-1">
+                        {(product.name || '').toLowerCase()}
                     </h3>
-                    
-                    {/* Rating Pill */}
-                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded px-1.5 py-0.5 shadow-sm flex-shrink-0">
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded px-1.5 py-0.5 shadow-sm flex-shrink-0 mt-0.5">
                         <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                        <span className="text-[9px] md:text-[10px] font-bold text-gray-700">{product.rating || 4.5}</span>
+                        <span className="text-[9px] md:text-[10px] font-bold text-gray-700">
+                            {product.rating || 4.5}
+                        </span>
                     </div>
                 </div>
 
-                {/* Price, Offer & ADD Button Row */}
-                <div className="flex justify-between items-end mt-1">
-                    <div className="flex flex-col">
+                <div className="flex justify-between items-end mt-auto pt-1">
+                    <div className="flex flex-col min-h-[2.75rem] justify-end">
                         <div className="flex items-end gap-1.5 mb-0.5">
                             <span className="text-[#111111] font-bold text-sm md:text-base font-sans tracking-tight leading-none">
                                 ₹{(product?.price || 0).toLocaleString()}
@@ -139,34 +189,46 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
                                 </span>
                             )}
                         </div>
-                        
-                        {/* Red Offer Text (Image 3 Style) */}
-                        {hasDiscount ? (
-                            <span className="text-[#ED6B5A] text-[9.5px] md:text-[11px] font-semibold mt-0.5">
-                                {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off on Making Charges
-                            </span>
-                        ) : (
-                             <span className="text-transparent text-[9.5px] md:text-[11px] font-semibold mt-0.5">
-                                Spacer
-                             </span>
-                        )}
+                        <span
+                            className={`text-[9.5px] md:text-[11px] font-semibold mt-0.5 min-h-[1rem] ${
+                                hasDiscount ? 'text-[#ED6B5A]' : 'invisible'
+                            }`}
+                        >
+                            {hasDiscount
+                                ? `${Math.round(
+                                      ((product.originalPrice - product.price) / product.originalPrice) * 100
+                                  )}% off on Making Charges`
+                                : 'spacer'}
+                        </span>
                     </div>
 
-                    {/* ADD Button or Quantity Controls */}
                     {cartItem ? (
                         <div className="flex items-center bg-[#111111] text-white rounded text-[10px] md:text-xs font-bold overflow-hidden h-7 md:h-8 flex-shrink-0">
-                            <button 
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (cartItem.quantity === 1) removeFromCart(product.id); else updateQuantity(product.id, cartItem.quantity - 1); }} 
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (cartItem.quantity === 1) removeFromCart(productId);
+                                    else updateQuantity(productId, cartItem.quantity - 1);
+                                }}
                                 className="px-2.5 md:px-3 hover:bg-white/20 h-full flex items-center justify-center transition-colors"
-                            >−</button>
+                            >
+                                −
+                            </button>
                             <span className="px-1 w-4 md:w-5 text-center">{cartItem.quantity}</span>
-                            <button 
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQuantity(product.id, cartItem.quantity + 1); }} 
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    updateQuantity(productId, cartItem.quantity + 1);
+                                }}
                                 className="px-2.5 md:px-3 hover:bg-white/20 h-full flex items-center justify-center transition-colors"
-                            >+</button>
+                            >
+                                +
+                            </button>
                         </div>
                     ) : (
-                        <button 
+                        <button
                             onClick={handleAddToCart}
                             className="bg-white border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white rounded text-[10px] md:text-xs font-bold px-4 py-1.5 md:px-5 md:py-1.5 transition-colors flex-shrink-0 h-7 md:h-8 flex items-center justify-center"
                         >
@@ -180,4 +242,3 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
 };
 
 export default ProductCard;
-

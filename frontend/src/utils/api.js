@@ -6,7 +6,7 @@ import axios from 'axios';
 const API_BASE_URL = (
     import.meta.env.VITE_API_URL ||
     (import.meta.env.PROD
-        ? 'https://hg-enterprises.onrender.com/api'
+        ? 'https://hgenterprises.onrender.com/api'
         : 'http://localhost:5001/api')
 ).replace(/\/$/, '');
 
