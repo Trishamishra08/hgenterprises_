@@ -5,11 +5,7 @@ import {
     Bell, ChevronRight, ChevronDown, Star, HelpCircle, LogOut, Menu, X, ListTree,
     FileText, MessageSquare, Ticket, Settings, Plus, List, BookOpen,
     Clock, RefreshCw, RefreshCcw, RotateCcw, Boxes, ClipboardList, MapPin, Truck, CheckCircle2, XCircle,
-<<<<<<< HEAD
     AlertTriangle, FileBarChart, Percent, Video, Calendar
-=======
-    AlertTriangle, FileBarChart, Percent, Video
->>>>>>> dd7ddac858fbee0fccffc2de9ac0fb6323d953f9
 } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import api from '../../../utils/api';
@@ -129,7 +125,6 @@ const AdminLayout = ({ children }) => {
             ]
         },
         { name: 'Users', icon: Users, path: '/admin/users' },
-<<<<<<< HEAD
         {
             name: 'Video Call',
             icon: Video,
@@ -144,9 +139,6 @@ const AdminLayout = ({ children }) => {
                 },
             ],
         },
-=======
-        { name: 'Video Call', icon: Video, path: '/admin/video-calls' },
->>>>>>> dd7ddac858fbee0fccffc2de9ac0fb6323d953f9
         { name: 'Suggestions', icon: MessageSquare, path: '/admin/suggestions' },
         { name: 'Reviews', icon: Star, path: '/admin/reviews' },
         { name: 'Banners', icon: ImageIcon, path: '/admin/banners' },
