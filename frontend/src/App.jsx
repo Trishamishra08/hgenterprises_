@@ -90,12 +90,9 @@ import WarrantyInfo from './modules/user/pages/WarrantyInfo';
 import CustomizationPage from './modules/user/pages/CustomizationPage';
 import VideoCallLobby from './modules/user/pages/VideoCallLobby';
 import VideoCallRoom from './modules/user/pages/VideoCallRoom';
-<<<<<<< HEAD
 import VideoCallCart from './modules/user/pages/VideoCallCart';
 import VideoCallSchedule from './modules/user/pages/VideoCallSchedule';
 import VideoCallBookings from './modules/user/pages/VideoCallBookings';
-=======
->>>>>>> dd7ddac858fbee0fccffc2de9ac0fb6323d953f9
 import AdminVideoCalls from './modules/admin/pages/AdminVideoCalls';
 
 const ScrollToTop = () => {
