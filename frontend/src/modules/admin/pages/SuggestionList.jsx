@@ -63,7 +63,7 @@ const SuggestionList = () => {
         return suggestions.filter(s => {
             const matchesSearch =
                 s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (s.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 s.message.toLowerCase().includes(searchTerm.toLowerCase());
 
             const matchesStatus = statusFilter === 'all' || s.status === statusFilter;

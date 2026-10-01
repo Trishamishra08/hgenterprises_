@@ -4,7 +4,7 @@ exports.addSuggestion = async (req, res) => {
     try {
         const { name, email, message, userId, phone, source } = req.body;
 
-        if (!name || !email || !message) {
+        if (!name || !message || (!email && source !== 'welcome-popup')) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 

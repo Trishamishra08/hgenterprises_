@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const suggestionSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    email: { type: String, required: true },
+    email: { type: String, required: function () { return this.source !== 'welcome-popup'; }, default: '' },
     message: { type: String, required: true },
     phone: { type: String, default: '' },
     source: { type: String, default: 'suggestion' }, // 'suggestion' | 'welcome-popup'
