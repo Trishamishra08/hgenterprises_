@@ -22,6 +22,12 @@ router.get('/bookings/mine', authMiddleware, ctrl.myBookings);
 router.get('/bookings/pending-count', authMiddleware, adminMiddleware, ctrl.pendingCount);
 router.get('/bookings', authMiddleware, adminMiddleware, ctrl.listBookingsAdmin);
 router.post('/bookings/:id/admin', authMiddleware, adminMiddleware, ctrl.adminRespond);
+router.post('/bookings/:id/redirect', authMiddleware, adminMiddleware, ctrl.redirectBooking);
+
+// Sellers (admin-managed)
+router.get('/sellers', authMiddleware, adminMiddleware, ctrl.listSellers);
+router.post('/sellers', authMiddleware, adminMiddleware, ctrl.createSeller);
+router.delete('/sellers/:id', authMiddleware, adminMiddleware, ctrl.deleteSeller);
 router.post('/bookings/:id/confirm', authMiddleware, ctrl.userConfirm);
 router.post('/bookings/:id/cancel', authMiddleware, ctrl.cancelBooking);
 

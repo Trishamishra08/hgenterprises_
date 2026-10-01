@@ -56,7 +56,7 @@ const ReviewForm = ({ productId, productName, onClose }) => {
                     <Check className="text-emerald-600" size={32} />
                 </div>
                 <h3 className="font-black text-primary text-lg uppercase tracking-tight">Review Submitted!</h3>
-                <p className="text-sm text-gray-500 mt-2">Thank you for sharing your feedback. It helps us improve!</p>
+                <p className="text-sm text-gray-500 mt-2">Thank you for sharing your feedback. Once approved, it will appear on the product page and home testimonials.</p>
             </div>
         );
     }

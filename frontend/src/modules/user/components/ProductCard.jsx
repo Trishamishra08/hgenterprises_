@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getProductOffer } from '../../../utils/productOffer';
 import { Heart, Star, Play, Video } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import { Link, useNavigate } from 'react-router-dom';
@@ -11,7 +12,7 @@ import { getProductDepartment } from '../data/popularSearchData';
 const ProductCard = ({ product, isWishlistPage = false }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { addToCart, addToWishlist, removeFromWishlist, wishlist, cart, updateQuantity, removeFromCart, showNotification } = useShop();
+    const { addToCart, addToWishlist, removeFromWishlist, wishlist, cart, updateQuantity, removeFromCart, showNotification, coupons } = useShop();
     const [flying, setFlying] = useState(false);
     const [flyingType, setFlyingType] = useState('cart');
     const [vcLoading, setVcLoading] = useState(false);
@@ -21,6 +22,10 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
 
     const isWishlisted = wishlist.some((item) => item.id === productId || item.id === product.id);
     const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+    const cardOfferCoupon = getProductOffer(coupons, product);
+    const makingOffPct = hasDiscount
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+        : (cardOfferCoupon ? cardOfferCoupon.value : 0);
 
     const handleAddToCart = (e) => {
         e.preventDefault();
@@ -191,14 +196,10 @@ const ProductCard = ({ product, isWishlistPage = false }) => {
                         </div>
                         <span
                             className={`text-[9.5px] md:text-[11px] font-semibold mt-0.5 min-h-[1rem] ${
-                                hasDiscount ? 'text-[#ED6B5A]' : 'invisible'
+                                makingOffPct > 0 ? 'text-[#ED6B5A]' : 'invisible'
                             }`}
                         >
-                            {hasDiscount
-                                ? `${Math.round(
-                                      ((product.originalPrice - product.price) / product.originalPrice) * 100
-                                  )}% off on Making Charges`
-                                : 'spacer'}
+                            {makingOffPct > 0 ? `${makingOffPct}% off on Making Charges` : 'spacer'}
                         </span>
                     </div>
 

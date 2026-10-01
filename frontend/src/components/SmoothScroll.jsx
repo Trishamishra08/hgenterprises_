@@ -1,10 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
+import { useLocation } from 'react-router-dom';
 
 const SmoothScroll = ({ children }) => {
   const lenisRef = useRef();
+  const isAdmin = useLocation().pathname.startsWith('/admin');
 
   useEffect(() => {
+    if (isAdmin) return undefined;
     const lenis = new Lenis({
       duration: 1.5, // Slightly longer for a more luxurious feel
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -34,7 +37,7 @@ const SmoothScroll = ({ children }) => {
       window.removeEventListener('resize', handleResize);
       lenis.destroy();
     };
-  }, []);
+  }, [isAdmin]);
 
   return <>{children}</>;
 };

@@ -3,6 +3,8 @@ import { Facebook, Twitter, Instagram, Youtube, Truck, Mail, Phone, MapPin, Hear
 import { Link, useLocation } from 'react-router-dom';
 import hgLogoPremium from '../assets/logo_final.jpg';
 import { useShop } from '../../../context/ShopContext';
+import api from '../../../utils/api';
+import { SOCIAL_PLATFORMS } from '../../../utils/socialPlatforms';
 
 
 const Footer = () => {
@@ -74,6 +76,28 @@ const Footer = () => {
     }, [globalSettings]);
 
 
+    // Admin-managed policies (Admin → Policies) are appended to the Policies column
+    const [dynamicPolicies, setDynamicPolicies] = useState([]);
+    const [guideDepartments, setGuideDepartments] = useState([]);
+
+    useEffect(() => {
+        api.get('/policies').then((res) => setDynamicPolicies(res.data)).catch(() => {});
+        api.get('/guidelines').then((res) => {
+            const depts = ['jewellery', 'tools', 'machines'].filter((d) => res.data.some((g) => g.department === d));
+            setGuideDepartments(depts);
+        }).catch(() => {});
+    }, []);
+
+    const policyLinks = [
+        ...(settings.footerPoliciesLinks || []).filter((l) => !l.path?.startsWith('/policies/')),
+        ...dynamicPolicies.map((p) => ({ name: p.title, path: `/policies/${p.slug}` })),
+    ];
+    const worldLinks = [
+        ...(settings.footerWorldLinks || []),
+        { name: 'Resource Centre', path: '/resources' },
+        ...guideDepartments.map((d) => ({ name: `${d.charAt(0).toUpperCase()}${d.slice(1)} Guide`, path: `/guidelines/${d}` })),
+    ];
+
     if (isOrderSuccess) return null;
 
     return (
@@ -110,8 +134,8 @@ const Footer = () => {
                     <div className="lg:col-span-5 grid grid-cols-3 gap-4">
                         {[
                             { title: settings.footerColumn1Title, links: settings.footerExperienceLinks },
-                            { title: settings.footerColumn2Title, links: settings.footerPoliciesLinks },
-                            { title: settings.footerColumn3Title, links: settings.footerWorldLinks }
+                            { title: settings.footerColumn2Title, links: policyLinks },
+                            { title: settings.footerColumn3Title, links: worldLinks }
                         ].map((col, i) => (
                             <div key={i} className="space-y-4">
                                 <h4 className="font-display text-white font-black uppercase tracking-widest text-[10px] pb-1 border-b border-white/5 inline-block">{col.title}</h4>
@@ -144,11 +168,23 @@ const Footer = () => {
                                 </div>
                             </div>
                             <div className="mt-4 pt-4 border-t border-white/5 flex gap-3">
-                                {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
-                                    <a key={i} href="#" className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white hover:border-primary transition-all">
-                                        <Icon className="w-4 h-4" />
-                                    </a>
-                                ))}
+                                {(settings.socialPages || []).filter((p) => p.isActive !== false && p.url).map((p, i) => {
+                                    const meta = SOCIAL_PLATFORMS[p.platform] || SOCIAL_PLATFORMS.other;
+                                    const Icon = meta.icon;
+                                    return (
+                                        <a
+                                            key={i}
+                                            href={p.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title={p.label || meta.label}
+                                            aria-label={p.label || meta.label}
+                                            className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white hover:border-primary transition-all"
+                                        >
+                                            <Icon className="w-4 h-4" />
+                                        </a>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

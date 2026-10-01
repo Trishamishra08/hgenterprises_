@@ -21,6 +21,7 @@ const settingsSchema = new mongoose.Schema({
     codPolicy: { type: String, default: 'Cash On Delivery' },
     gstPercentage: { type: Number, default: 18 },
     shippingCharge: { type: Number, default: 50 },
+    codMaxAmount: { type: Number, default: 50000 }, // Cash on Delivery is refused above this order total
 
     // Value Propositions
     warrantyText: { type: String, default: 'Lifetime Warranty' },
@@ -58,6 +59,14 @@ const settingsSchema = new mongoose.Schema({
         instagram: { type: String, default: '#' },
         youtube: { type: String, default: '#' }
     },
+
+    // Admin-managed social pages shown in the footer (Admin → Social Media)
+    socialPages: [{
+        platform: { type: String, default: 'other' },
+        label: { type: String, default: '' },
+        url: { type: String, required: true },
+        isActive: { type: Boolean, default: true },
+    }],
 
     footerDeliveryText: { type: String, default: 'Safe & Insured Express Worldwide Delivery' },
     footerCopyrightText: { type: String, default: 'HG Enterprises Pvt Ltd. All Rights Reserved.' },

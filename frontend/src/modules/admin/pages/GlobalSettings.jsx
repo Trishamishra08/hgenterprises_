@@ -22,6 +22,13 @@ const GlobalSettings = () => {
     const { user, setUser } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+    // Deep link from the header account menu: /admin/settings#security
+    useEffect(() => {
+        if (window.location.hash === '#security') {
+            setTimeout(() => document.getElementById('security')?.scrollIntoView({ behavior: 'smooth' }), 150);
+        }
+    }, []);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
 
     // Profile State
@@ -203,7 +210,7 @@ const GlobalSettings = () => {
                 </div>
 
                 {/* Password Section */}
-                <div className="lg:col-span-7">
+                <div className="lg:col-span-7 scroll-mt-20" id="security">
                     <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-black/[0.02] overflow-hidden flex flex-col h-full">
                         <div className="p-8 border-b border-gray-50 bg-gray-50/30">
                             <div className="flex items-center gap-4">

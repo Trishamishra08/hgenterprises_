@@ -1,0 +1,59 @@
+/*
+ * Admin panel typography + surface overrides.
+ * Pages were written with decorative styling (serif italics, 8-10px uppercase labels with very wide tracking).
+ * Scoped to .admin-root so the storefront is unaffected.
+ */
+.admin-root {
+    --admin-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --admin-bg: #F5F6F8;
+    font-family: var(--admin-font);
+    -webkit-font-smoothing: antialiased;
+}
+
+.admin-root,
+.admin-root *:not(svg):not(path) {
+    font-family: var(--admin-font) !important;
+}
+
+/* Sentence-case labels, no decorative italics, readable tracking and weight */
+.admin-root .italic { font-style: normal !important; }
+.admin-root .uppercase { text-transform: none !important; }
+.admin-root [class*="tracking-"] { letter-spacing: 0.005em !important; }
+.admin-root .font-black,
+.admin-root .font-extrabold { font-weight: 600 !important; }
+
+/* Minimum readable sizes for the tiny utility sizes used across pages */
+.admin-root [class*="text-[5px]"],
+.admin-root [class*="text-[6px]"],
+.admin-root [class*="text-[6.5px]"],
+.admin-root [class*="text-[7px]"],
+.admin-root [class*="text-[7.5px]"],
+.admin-root [class*="text-[8px]"],
+.admin-root [class*="text-[8.5px]"],
+.admin-root [class*="text-[9px]"] { font-size: 11px !important; line-height: 1.4; }
+.admin-root [class*="text-[10px]"] { font-size: 12px !important; line-height: 1.4; }
+.admin-root [class*="text-[11px]"] { font-size: 13px !important; }
+
+/* Neutral page surface — no pink tint */
+.admin-root .bg-bg-light,
+.admin-root [class*="bg-[#FDF5F6]"],
+.admin-root [class*="bg-[#fff0f2]"],
+.admin-root [class*="bg-[#FFF0F2]"],
+.admin-root [class*="bg-[#FFF5F6]"] { background-color: var(--admin-bg) !important; }
+.admin-root .bg-pink-50,
+.admin-root .bg-pink-100,
+.admin-root .bg-rose-50,
+.admin-root [class*="bg-pink-50/"],
+.admin-root [class*="bg-pink-100/"] { background-color: #F3F4F6 !important; }
+
+/* Sidebar: wheel over it scrolls only the sidebar, never the page behind */
+.admin-sidebar-scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.admin-sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.admin-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.admin-sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 3px; }
+.admin-sidebar-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.32); }

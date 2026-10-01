@@ -32,7 +32,10 @@ import {
     AlertTriangle,
     FileBarChart,
     Percent,
-    Zap
+    Zap,
+    SlidersHorizontal,
+    ScrollText,
+    BookOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
@@ -83,6 +86,9 @@ const AdminSidebar = () => {
         { icon: Zap, label: 'Offers', path: '/admin/offers' },
         { icon: LayoutDashboard, label: 'Platform Config', path: '/admin/platform-settings' },
         { icon: Share2, label: 'Referrals', path: '/admin/referrals' },
+        { icon: SlidersHorizontal, label: 'Attributes', path: '/admin/attributes' },
+        { icon: ScrollText, label: 'Policies', path: '/admin/policies' },
+        { icon: BookOpen, label: 'Guidelines', path: '/admin/guidelines' },
     ];
 
     const isActive = (path) => location.pathname.startsWith(path);

@@ -17,7 +17,16 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import watermarkLogo from '../../../assets/WhatsApp_Image_2026-03-12_at_1.38.09_PM__1_-removebg-preview.png';
 import PopularSearchTags from '../components/PopularSearchTags';
+import { getProductOffer } from '../../../utils/productOffer';
 import { getProductDepartment, buildPopularSearchLink, parseTagsString, getDepartmentLabel, resolveDepartmentFromCategory } from '../data/popularSearchData';
+import {
+    normalizeJewelleryDetails,
+    hasJewelleryDetailsContent,
+    productDetailRows,
+    metalDetailRows,
+    diamondSummaryRows,
+    priceBreakupRows,
+} from '../../../utils/jewelleryDetails';
 
 const ProductDetails = () => {
     const { id } = useParams();
@@ -174,6 +183,7 @@ const ProductDetails = () => {
     useEffect(() => {
         if (id) {
             fetchReviews();
+            setActiveReviewIdx(0);
         }
     }, [id]);
 
@@ -382,6 +392,51 @@ const ProductDetails = () => {
     };
 
     const [selectedSize, setSelectedSize] = useState(9);
+    const offerCoupon = getProductOffer(coupons, product);
+    const priceOffPct = product?.originalPrice > product?.price
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+        : 0;
+    // Admin-defined attributes (colour, size, ...) saved on the product; key → chosen label
+    const [attributeSelections, setAttributeSelections] = useState({});
+    const attributeOptions = product?.attributeOptions || [];
+    const sizeAttribute = attributeOptions.find((a) => a.type === 'size');
+    const DEFAULT_METAL_COLOURS = [
+        { label: 'Yellow Gold', value: '#E6B84F' },
+        { label: 'Rose Gold', value: '#E8A598' },
+        { label: 'White Gold', value: '#D9D9DE' },
+    ];
+    // Metal colour lives in the "Customize this design" panel next to purity/clarity
+    const metalColourAttr = attributeOptions.find((a) => a.key === 'metal-colour' && a.values?.length > 0);
+    const metalColourValues = metalColourAttr?.values || DEFAULT_METAL_COLOURS;
+    const selectedMetalColour = attributeSelections['metal-colour'] || metalColourValues[0].label;
+    const displayAttributes = attributeOptions.filter((a) => a.type !== 'size' && a.key !== 'metal-colour' && a.values?.length > 0);
+
+    useEffect(() => {
+        const next = {};
+        (product?.attributeOptions || []).forEach((a) => {
+            if (a.values?.length) next[a.key] = a.values[0].label;
+        });
+        setAttributeSelections(next);
+        const sizeAttr = (product?.attributeOptions || []).find((a) => a.type === 'size');
+        if (sizeAttr?.values?.length) {
+            const first = sizeAttr.values[0].label;
+            setSelectedSize(Number.isNaN(Number(first)) ? first : Number(first));
+        }
+    }, [product?.id, product?._id]);
+
+    // Snapshot of the shopper's choices, attached to cart items
+    const buildCartItem = () => ({
+        ...product,
+        selectedSize,
+        selectedAttributes: {
+            ...(isJewelleryProduct ? { 'Metal Colour': selectedMetalColour } : {}),
+            ...Object.fromEntries(
+                attributeOptions
+                    .filter((a) => a.type !== 'size' && a.key !== 'metal-colour' && attributeSelections[a.key])
+                    .map((a) => [a.name, attributeSelections[a.key]])
+            ),
+        },
+    });
     const [showSizeGuide, setShowSizeGuide] = useState(false);
 
     useEffect(() => {
@@ -407,14 +462,15 @@ const ProductDetails = () => {
     );
 
     const handleAddToCart = () => {
-        addToCart({ ...product, selectedSize });
+        addToCart(buildCartItem());
         setShowSuccessSheet(true);
     };
 
     const handleBuyNow = () => {
         // Direct buy flow: add to cart first then navigate
-        addToCart({ ...product, selectedSize });
-        navigate('/checkout', { state: { directBuy: true, product: { ...product, selectedSize } } });
+        const cartItem = buildCartItem();
+        addToCart(cartItem);
+        navigate('/checkout', { state: { directBuy: true, product: cartItem } });
     };
 
     const handleWishlist = () => {
@@ -666,13 +722,25 @@ const ProductDetails = () => {
             doc.text(splitDesc.slice(0, descLinesToShow), rightColX, rightY + 4);
             rightY += 4 + descLinesToShow * 4.2 + 2;
 
-            // If jewelry product, fetch specs and price breakup details
-            const groupedSpecs = getGroupedSpecs();
-            const priceBreakupList = groupedSpecs['PRICE BREAKUP'] || [];
+            // If jewelry product, use structured jewelleryDetails (with legacy fallback)
+            const jewelleryPdf = isJewelleryProduct ? normalizeJewelleryDetails(product) : null;
+            const jewelleryPdfReady = isJewelleryProduct && hasJewelleryDetailsContent(jewelleryPdf);
+            const groupedSpecs = !jewelleryPdfReady ? getGroupedSpecs() : {};
+            const priceBreakupList = jewelleryPdfReady
+                ? priceBreakupRows(jewelleryPdf, { inventFromPrice: currentPrice })
+                : (groupedSpecs['PRICE BREAKUP'] || []);
 
             // Specs table in right column (compact)
             const specsData = [];
-            if (product?.specifications?.length > 0) {
+            if (jewelleryPdfReady) {
+                [
+                    ...productDetailRows(jewelleryPdf),
+                    ...diamondSummaryRows(jewelleryPdf),
+                    ...metalDetailRows(jewelleryPdf),
+                ]
+                    .slice(0, 10)
+                    .forEach((row) => specsData.push([row.label, row.value]));
+            } else if (product?.specifications?.length > 0) {
                 // Filter out tags & price breakup from normal specs table in right column to keep it clean!
                 product.specifications
                     .filter(spec => {
@@ -698,12 +766,34 @@ const ProductDetails = () => {
                 rightY = doc.lastAutoTable.finalY + 4;
             }
 
+            // Diamond rows table (Count | Shape | Size | Setting)
+            if (jewelleryPdfReady && jewelleryPdf.diamondDetails?.rows?.length > 0) {
+                const diamondBody = jewelleryPdf.diamondDetails.rows.map((r) => [
+                    r.count || '-',
+                    r.shape || '-',
+                    r.size || '-',
+                    r.settingType || '-',
+                ]);
+                autoTable(doc, {
+                    startY: rightY,
+                    head: [['Count', 'Shape', 'Size', 'Setting Type']],
+                    body: diamondBody,
+                    theme: 'plain',
+                    headStyles: { fillColor: [fR, fG, fB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, cellPadding: 1.5 },
+                    bodyStyles: { fontSize: 7, cellPadding: 1.5 },
+                    alternateRowStyles: { fillColor: [253, 245, 246] },
+                    margin: { left: rightColX, right: 14 },
+                    tableWidth: rightColW,
+                });
+                rightY = doc.lastAutoTable.finalY + 4;
+            }
+
             // Price Breakup table right below specifications
             if (isJewelleryProduct && priceBreakupList.length > 0) {
                 // jsPDF doesn't render ₹ — replace with Rs. for proper display
                 const pbData = priceBreakupList.map(item => [
                     item.label,
-                    String(item.value).replace('₹', 'Rs. ').replace(/^Rs\.\s*/, 'Rs. ')
+                    String(item.value).replace(/₹/g, 'Rs. ').replace(/^Rs\.\s*/, 'Rs. ')
                 ]);
                 autoTable(doc, {
                     startY: rightY,
@@ -847,34 +937,61 @@ const ProductDetails = () => {
     const finalPrice = getDiscountedPrice();
 
     const renderProductDetailsAccordion = () => {
+        const jewellery = isJewelleryProduct ? normalizeJewelleryDetails(product) : null;
+        const useStructured = isJewelleryProduct && hasJewelleryDetailsContent(jewellery);
         const hasSpecs = product.specifications && product.specifications.length > 0;
-        const groupedSpecs = hasSpecs ? getGroupedSpecs() : {};
+        const groupedSpecs = !useStructured && hasSpecs ? getGroupedSpecs() : {};
 
-        // Sub-component: a single label–value row (safe, no hooks)
-        const SpecRow = ({ label, value, isTotal = false }) => (
-            <div className={`grid grid-cols-2 gap-2 py-1.5 px-2 text-[10.5px] border-b border-zinc-100 last:border-0
-                ${isTotal ? 'bg-[#FDF5F6]' : 'hover:bg-zinc-50/60'}
-            `}>
-                <span className={`leading-snug ${isTotal ? 'text-[#8B4356] font-black' : 'text-zinc-500 font-medium'}`}>
+        const INFO_LABELS = new Set([
+            'Height',
+            'Width',
+            'Product Weight',
+            'Total Weight',
+            'Weight',
+        ]);
+
+        const SpecRow = ({ label, value, isTotal = false, showInfo = false }) => (
+            <div
+                className={`grid grid-cols-2 gap-2 py-2.5 px-3 text-[11px] border-b border-zinc-200/80 last:border-0
+                ${isTotal ? 'bg-[#FAFAFA]' : ''}`}
+            >
+                <span className={`leading-snug flex items-center gap-1.5 ${isTotal ? 'text-[#333] font-bold' : 'text-zinc-500 font-normal'}`}>
                     {label}
+                    {(showInfo || INFO_LABELS.has(label)) && (
+                        <Info
+                            className="w-3 h-3 text-zinc-400 shrink-0"
+                            strokeWidth={2}
+                            aria-hidden
+                        />
+                    )}
                 </span>
-                <span className={`leading-snug text-right ${isTotal ? 'text-[#1a1a1a] font-black text-[11.5px]' : 'text-[#1D5C8A] font-semibold'}`}>
+                <span
+                    className={`leading-snug text-right ${
+                        isTotal
+                            ? 'text-[#1a1a1a] font-bold text-[12.5px]'
+                            : 'text-[#333] font-medium'
+                    }`}
+                >
                     {value}
                 </span>
             </div>
         );
 
-        // Accordion section — uses shared expandedSections + toggleSection (no useState inside render)
-        const AccordionSection = ({ sectionKey, title, items, isTagSection = false }) => {
-            const isOpen = expandedSections[sectionKey] !== false; // default open unless explicitly false
+        const AccordionShell = ({ sectionKey, title, children }) => {
+            const isOpen = expandedSections[sectionKey] !== false;
             return (
                 <div className="border-b border-zinc-200 last:border-0">
                     <button
+                        type="button"
                         onClick={() => toggleSection(sectionKey)}
-                        className="w-full flex items-center justify-between py-2 px-2.5 bg-zinc-50 hover:bg-[#FDF5F6] transition-colors"
+                        className="w-full flex items-center justify-between py-2.5 px-3 bg-white hover:bg-zinc-50/80 transition-colors"
                     >
-                        <span className="text-[10px] font-black text-[#1a1a1a] tracking-[0.2em] uppercase">{title}</span>
-                        <span className={`text-[#8B4356] font-black text-base leading-none transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}>+</span>
+                        <span className="text-[11px] font-bold text-[#444] tracking-[0.12em] uppercase">
+                            {title}
+                        </span>
+                        <span className="text-zinc-500 font-normal text-lg leading-none select-none w-4 text-center">
+                            {isOpen ? '−' : '+'}
+                        </span>
                     </button>
                     <AnimatePresence initial={false}>
                         {isOpen && (
@@ -883,40 +1000,142 @@ const ProductDetails = () => {
                                 animate={{ height: 'auto', opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
                                 transition={{ duration: 0.18 }}
-                                className="overflow-hidden"
+                                className="overflow-hidden border-t border-zinc-100"
                             >
-                                {isTagSection ? (
-                                    <div className="px-3 py-3 text-[10.5px] text-[#2C6E9E] font-medium leading-relaxed tracking-wide">
-                                        {parseTagsString(items[0]?.value).length > 0 ? (
-                                            parseTagsString(items[0]?.value).map((tag, i, arr) => (
-                                                <span key={`${tag}-${i}`}>
-                                                    <Link
-                                                        to={buildPopularSearchLink(productDepartment, tag, productSubCategory ? { subcategory: productSubCategory } : {})}
-                                                        className="hover:underline"
-                                                    >
-                                                        {tag}
-                                                    </Link>
-                                                    {i < arr.length - 1 && ', '}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            items[0]?.value
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div>
-                                        {items.map((item, i) => {
-                                            const isTotal = item.label.toUpperCase() === 'TOTAL';
-                                            return <SpecRow key={i} label={item.label} value={item.value} isTotal={isTotal} />;
-                                        })}
-                                    </div>
-                                )}
+                                {children}
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
             );
         };
+
+        const AccordionSection = ({ sectionKey, title, items, isTagSection = false, tags = null }) => {
+            if (isTagSection) {
+                const tagList = tags || parseTagsString(items?.[0]?.value);
+                if (!tagList?.length) return null;
+                return (
+                    <AccordionShell sectionKey={sectionKey} title={title}>
+                        <div className="px-3 py-3 text-[11px] text-[#2C6E9E] font-medium leading-[1.85] tracking-wide">
+                            {tagList.map((tag, i, arr) => (
+                                <span key={`${tag}-${i}`}>
+                                    <Link
+                                        to={buildPopularSearchLink(productDepartment, tag, productSubCategory ? { subcategory: productSubCategory } : {})}
+                                        className="hover:underline"
+                                    >
+                                        {tag}
+                                    </Link>
+                                    {i < arr.length - 1 && ', '}
+                                </span>
+                            ))}
+                        </div>
+                    </AccordionShell>
+                );
+            }
+            if (!items || items.length === 0) return null;
+            return (
+                <AccordionShell sectionKey={sectionKey} title={title}>
+                    <div>
+                        {items.map((item, i) => {
+                            const isTotal = item.label.toUpperCase() === 'TOTAL';
+                            return (
+                                <SpecRow
+                                    key={i}
+                                    label={item.label}
+                                    value={item.value}
+                                    isTotal={isTotal}
+                                />
+                            );
+                        })}
+                    </div>
+                </AccordionShell>
+            );
+        };
+
+        /** BlueStone-style transposed diamond matrix: attribute rows × diamond-group columns */
+        const DiamondTableSection = ({ details }) => {
+            const summary = diamondSummaryRows(details);
+            const rows = details?.diamondDetails?.rows || [];
+            if (summary.length === 0 && rows.length === 0) return null;
+
+            const matrixAttrs = [
+                { key: 'count', label: 'Count' },
+                { key: 'shape', label: 'Shape' },
+                { key: 'size', label: 'Size' },
+                { key: 'settingType', label: 'Setting Type' },
+            ];
+
+            return (
+                <AccordionShell sectionKey="DIAMOND DETAILS" title="Diamond Details">
+                    <div>
+                        {summary.map((item, i) => (
+                            <SpecRow key={`sum-${i}`} label={item.label} value={item.value} />
+                        ))}
+                        {rows.length > 0 && (
+                            <div className="overflow-x-auto px-3 py-2 border-t border-zinc-100">
+                                <table className="w-full text-[11px] border-collapse min-w-[240px]">
+                                    <tbody>
+                                        {matrixAttrs.map(({ key, label }) => (
+                                            <tr key={key} className="border-b border-zinc-100 last:border-0">
+                                                <td className="py-2 pr-3 text-zinc-500 font-normal whitespace-nowrap align-top w-[28%]">
+                                                    {label}
+                                                </td>
+                                                {rows.map((row, i) => (
+                                                    <td
+                                                        key={i}
+                                                        className="py-2 px-2 text-[#333] font-medium text-center align-top"
+                                                    >
+                                                        {row[key] || '—'}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </AccordionShell>
+            );
+        };
+
+        if (useStructured) {
+            const productRows = productDetailRows(jewellery);
+            const metalRows = metalDetailRows(jewellery);
+            const priceRows = priceBreakupRows(jewellery, {
+                inventFromPrice: currentPrice,
+            });
+            const hasAnything =
+                productRows.length ||
+                metalRows.length ||
+                jewellery.diamondDetails?.rows?.length ||
+                diamondSummaryRows(jewellery).length ||
+                priceRows.length ||
+                jewellery.tags?.length;
+
+            if (!hasAnything) {
+                return (
+                    <div className="p-4 bg-white border border-[#F5E6E8] text-xs text-zinc-500 leading-relaxed">
+                        No additional specifications listed for this collection.
+                    </div>
+                );
+            }
+
+            return (
+                <div className="border border-zinc-200 bg-white overflow-hidden">
+                    <AccordionSection sectionKey="PRODUCT DETAILS" title="Product Details" items={productRows} />
+                    <DiamondTableSection details={jewellery} />
+                    <AccordionSection sectionKey="METAL DETAILS" title="Metal Details" items={metalRows} />
+                    <AccordionSection sectionKey="PRICE BREAKUP" title="Price Breakup" items={priceRows} />
+                    <AccordionSection
+                        sectionKey="TAGS"
+                        title="Tags"
+                        isTagSection
+                        tags={jewellery.tags}
+                    />
+                </div>
+            );
+        }
 
         if (!hasSpecs) {
             return (
@@ -926,29 +1145,25 @@ const ProductDetails = () => {
             );
         }
 
-        // Section title
         const mainTitle = isJewelleryProduct ? 'Product Details' : 'Technical Specifications';
-
-        // The sections to render in order
         const knownSections = [
-            { key: 'PRODUCT DETAILS',         label: 'Product Details',           open: true  },
-            { key: 'SOLITAIRE DETAILS',        label: 'Solitaire Details',         open: true  },
-            { key: 'DIAMOND DETAILS',          label: 'Diamond Details',           open: true  },
-            { key: 'METAL DETAILS',            label: 'Metal Details',             open: true  },
-            { key: 'PRICE BREAKUP',            label: 'Price Breakup',             open: true  },
-            { key: 'TAGS',                     label: 'Tags',                      open: false, isTag: true },
-            { key: 'TECHNICAL SPECIFICATIONS', label: 'Technical Specifications',  open: true  },
+            { key: 'PRODUCT DETAILS', label: 'Product Details' },
+            { key: 'DIAMOND DETAILS', label: 'Diamond Details' },
+            { key: 'METAL DETAILS', label: 'Metal Details' },
+            { key: 'PRICE BREAKUP', label: 'Price Breakup' },
+            { key: 'TAGS', label: 'Tags', isTag: true },
+            { key: 'TECHNICAL SPECIFICATIONS', label: 'Technical Specifications' },
         ];
-
         const renderedKeys = new Set();
 
         return (
             <div>
-                <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#333] mb-3 pb-2 border-b-2 border-[#8B4356]/20">
-                    {mainTitle}
-                </h4>
-
-                <div className="border border-zinc-200 rounded-sm overflow-hidden divide-y divide-zinc-200">
+                {!isJewelleryProduct && (
+                    <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-[#333] mb-3 pb-2 border-b-2 border-[#8B4356]/20">
+                        {mainTitle}
+                    </h4>
+                )}
+                <div className="border border-zinc-200 bg-white overflow-hidden divide-y divide-zinc-200">
                     {knownSections.map(({ key, label, isTag }) => {
                         const items = groupedSpecs[key];
                         if (!items || items.length === 0) return null;
@@ -963,14 +1178,11 @@ const ProductDetails = () => {
                             />
                         );
                     })}
-
-                    {/* Catch-all for any ungrouped extra sections */}
                     {Object.entries(groupedSpecs)
                         .filter(([k]) => !renderedKeys.has(k) && groupedSpecs[k]?.length > 0)
                         .map(([k, items]) => (
                             <AccordionSection key={k} sectionKey={k} title={k} items={items} />
-                        ))
-                    }
+                        ))}
                 </div>
             </div>
         );
@@ -1168,6 +1380,18 @@ const ProductDetails = () => {
 
                             <p className="text-[11px] font-medium text-[#7a7a7a]">MRP incl. of all taxes</p>
 
+                            {/* Offer (discount + code) always sits above the video-call option */}
+                            {(offerCoupon || priceOffPct > 0) && (
+                                <div className="flex items-center gap-2 pt-1 text-[12.5px] text-[#333]">
+                                    <Tag className="w-4 h-4 text-[#ED6B5A] shrink-0" />
+                                    <span>
+                                        <span className="font-bold text-[#ED6B5A]">{offerCoupon ? offerCoupon.value : priceOffPct}% off</span> on Making Charges
+                                        {offerCoupon && <>: Use <span className="font-bold tracking-wide">{offerCoupon.code}</span></>}
+                                        {' '}<Link to="/terms" className="text-[10px] text-zinc-400 hover:underline">*T&amp;C</Link>
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-2 pt-1">
                                     <Video className="w-4 h-4 text-[#2E7D32]" />
                                     <span className="text-[12px] text-[#333]">Schedule video call</span>
@@ -1277,6 +1501,30 @@ const ProductDetails = () => {
                                                 exit={{ opacity: 0, height: 0 }}
                                                 className="overflow-hidden"
                                             >
+                                                <div className="pt-3 space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10.5px] font-assistant font-bold text-zinc-400 uppercase tracking-wider">Metal Colour</span>
+                                                        <span className="text-[11px] font-assistant font-bold text-zinc-700">{selectedMetalColour}</span>
+                                                    </div>
+                                                    <div className="flex gap-2.5">
+                                                        {metalColourValues.map((col) => {
+                                                            const active = selectedMetalColour === col.label;
+                                                            return (
+                                                                <button
+                                                                    key={col.label}
+                                                                    type="button"
+                                                                    title={col.label}
+                                                                    aria-label={`Metal colour: ${col.label}`}
+                                                                    aria-pressed={active}
+                                                                    onClick={() => setAttributeSelections((prev) => ({ ...prev, 'metal-colour': col.label }))}
+                                                                    className={`w-8 h-8 rounded-full p-[3px] border-2 transition-all ${active ? 'border-[#EF5F3F] scale-110' : 'border-transparent hover:border-zinc-300'}`}
+                                                                >
+                                                                    <span className="block w-full h-full rounded-full border border-black/10" style={{ background: col.value || '#ddd' }} />
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
                                                 <div className="grid grid-cols-2 gap-4 pt-3 pb-1">
                                                     <div className="space-y-1">
                                                         <span className="text-[10.5px] font-assistant font-bold text-zinc-400 uppercase tracking-wider">Metal Purity</span>
@@ -1320,6 +1568,45 @@ const ProductDetails = () => {
                             </div>
                         )}
 
+                        {/* Dynamic attributes from Admin → Attributes (colour swatches, text options) */}
+                        {displayAttributes.map((attr) => (
+                            <div key={attr.key} className="flex flex-col gap-1.5 py-1.5">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{attr.name}</span>
+                                    <span className="text-[11px] font-bold text-zinc-800">{attributeSelections[attr.key]}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2.5">
+                                    {attr.values.map((val) => {
+                                        const active = attributeSelections[attr.key] === val.label;
+                                        const pick = () => setAttributeSelections((prev) => ({ ...prev, [attr.key]: val.label }));
+                                        return attr.type === 'color' ? (
+                                            <button
+                                                key={val.label}
+                                                type="button"
+                                                title={val.label}
+                                                aria-label={`${attr.name}: ${val.label}`}
+                                                aria-pressed={active}
+                                                onClick={pick}
+                                                className={`w-8 h-8 rounded-full p-[3px] border-2 transition-all ${active ? 'border-[#8B4356] scale-110' : 'border-transparent hover:border-zinc-300'}`}
+                                            >
+                                                <span className="block w-full h-full rounded-full border border-black/10" style={{ background: val.value || '#ddd' }} />
+                                            </button>
+                                        ) : (
+                                            <button
+                                                key={val.label}
+                                                type="button"
+                                                aria-pressed={active}
+                                                onClick={pick}
+                                                className={`px-3 py-1.5 text-[11px] font-bold border transition-all ${active ? 'border-[#8B4356] text-[#8B4356] bg-[#8B4356]/5' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}
+                                            >
+                                                {val.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+
                         {/* Conditional Action Card: Sizes for Jewelry vs PDF Downloads for Machines/Tools */}
                         {isJewelleryProduct ? (
                             <div className="flex flex-col gap-1 py-1.5 mt-1 border-b border-zinc-100/50 pb-2.5">
@@ -1336,10 +1623,10 @@ const ProductDetails = () => {
                                 <div className="relative w-full max-w-[280px] mt-0.5">
                                     <select
                                         value={selectedSize}
-                                        onChange={(e) => setSelectedSize(Number(e.target.value))}
+                                        onChange={(e) => setSelectedSize(Number.isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
                                         className="w-full bg-white border border-zinc-200 py-2 px-3 pr-8 text-[12px] font-assistant font-bold text-zinc-800 focus:outline-none focus:border-[#8B4356] transition-all rounded-none appearance-none cursor-pointer"
                                     >
-                                        {[
+                                        {(sizeAttribute?.values?.length ? sizeAttribute.values.map((v) => ({ size: Number.isNaN(Number(v.label)) ? v.label : Number(v.label), mm: '', status: '' })) : [
                                             { size: 5, mm: '44.8 mm', status: 'Made to Order' },
                                             { size: 6, mm: '45.9 mm', status: 'Only 2 left!' },
                                             { size: 7, mm: '47.1 mm', status: 'Only 2 left!' },
@@ -1350,9 +1637,9 @@ const ProductDetails = () => {
                                             { size: 12, mm: '51.8 mm', status: 'In Stock' },
                                             { size: 13, mm: '52.8 mm', status: 'In Stock' },
                                             { size: 14, mm: '54.0 mm', status: 'In Stock' }
-                                        ].map((opt) => (
+                                        ]).map((opt) => (
                                             <option key={opt.size} value={opt.size}>
-                                                Size {opt.size} ({opt.mm}) — {opt.status}
+                                                Size {opt.size}{opt.mm ? ` (${opt.mm}) — ${opt.status}` : ''}
                                             </option>
                                         ))}
                                     </select>
@@ -1512,7 +1799,7 @@ const ProductDetails = () => {
                         <div className="lg:col-span-6 space-y-6">
                             {/* Customer Speak / Ratings & Reviews Section - Compact & Beautiful */}
                             {(() => {
-                                const allReviewsList = [...reviews, ...[
+                                const fallbackReviews = [
                                     {
                                         _id: 'default-1',
                                         userId: { name: 'Manisha Lalwani', userImage: '' },
@@ -1537,7 +1824,9 @@ const ProductDetails = () => {
                                         createdAt: '2026-04-02T00:00:00.000Z',
                                         images: [productImages[2] || product?.image]
                                     }
-                                ]];
+                                ];
+                                // Prefer real approved reviews; fall back to samples only when none exist
+                                const allReviewsList = reviews.length > 0 ? reviews : fallbackReviews;
 
                                 const currReview = allReviewsList[activeReviewIdx % allReviewsList.length] || allReviewsList[0];
 
@@ -1545,7 +1834,14 @@ const ProductDetails = () => {
                                     <div className="pb-4 w-full space-y-6">
                                         <div className="bg-transparent p-1">
                                             <div className="flex items-center justify-between border-b border-[#2C6E9E] pb-3 mb-6">
-                                                <h3 className="text-xs md:text-sm font-bold uppercase tracking-[0.2em] text-black">Customer Speak</h3>
+                                                <h3 className="text-xs md:text-sm font-bold uppercase tracking-[0.2em] text-black">
+                                                    Customer Speak
+                                                    {reviews.length > 0 && (
+                                                        <span className="ml-2 text-[9px] font-bold tracking-widest text-zinc-400 normal-case">
+                                                            ({reviews.length})
+                                                        </span>
+                                                    )}
+                                                </h3>
                                                 <button
                                                     onClick={() => setShowReviewForm(!showReviewForm)}
                                                     className="text-[10px] font-bold uppercase tracking-widest text-[#8B4356] hover:underline outline-none"
@@ -1565,6 +1861,9 @@ const ProductDetails = () => {
                                                     >
                                                         <form onSubmit={handleAddReview} className="space-y-4">
                                                             <h4 className="text-[10px] font-black uppercase tracking-widest text-[#8B4356]">Submit Your Testimony</h4>
+                                                            <p className="text-[10px] text-zinc-500 leading-relaxed">
+                                                                Reviews are available after your order is delivered. Approved reviews also appear on the home testimonials.
+                                                            </p>
 
                                                             <div>
                                                                 <label className="block text-[9px] font-black uppercase tracking-wider text-zinc-500 mb-2">Your Rating</label>
@@ -1602,7 +1901,7 @@ const ProductDetails = () => {
                                                                         type="text"
                                                                         value={reviewImage}
                                                                         onChange={(e) => setReviewImage(e.target.value)}
-                                                                        placeholder="Paste a photo link of your unboxing box..."
+                                                                        placeholder="Paste a photo link of your unboxing..."
                                                                         className="flex-1 border border-zinc-200 p-3 text-[11px] font-medium outline-none focus:border-[#8B4356]/40 bg-white"
                                                                     />
                                                                     <button
@@ -1620,7 +1919,7 @@ const ProductDetails = () => {
                                                                 disabled={isSubmittingReview}
                                                                 className="bg-black text-white py-3 px-8 text-[9px] font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-50 transition-all shadow-md outline-none"
                                                             >
-                                                                {isSubmittingReview ? 'Submitting...' : 'Post Testimonial'}
+                                                                {isSubmittingReview ? 'Submitting...' : 'Post Review'}
                                                             </button>
                                                         </form>
                                                     </motion.div>
@@ -1632,6 +1931,7 @@ const ProductDetails = () => {
                                                 <button
                                                     onClick={() => setActiveReviewIdx(prev => prev === 0 ? allReviewsList.length - 1 : prev - 1)}
                                                     className="p-1.5 text-[#1D5C8A] hover:scale-125 transition-transform outline-none shrink-0"
+                                                    aria-label="Previous review"
                                                 >
                                                     <ArrowLeft className="w-6 h-6 md:w-7 md:h-7 stroke-[3px]" />
                                                 </button>
@@ -1639,7 +1939,7 @@ const ProductDetails = () => {
                                                 <div className="flex-1 text-center px-1 overflow-hidden">
                                                     <AnimatePresence mode="wait">
                                                         <motion.div
-                                                            key={activeReviewIdx}
+                                                            key={currReview._id || activeReviewIdx}
                                                             initial={{ opacity: 0, scale: 0.98 }}
                                                             animate={{ opacity: 1, scale: 1 }}
                                                             exit={{ opacity: 0, scale: 0.98 }}
@@ -1649,10 +1949,21 @@ const ProductDetails = () => {
                                                             <div className="w-44 h-44 md:w-52 md:h-52 bg-white mb-5 mx-auto overflow-hidden border border-zinc-200 p-1 shadow-sm">
                                                                 <img
                                                                     src={currReview.images?.[0] || productImages[0] || product?.image}
-                                                                    alt="Customer View"
+                                                                    alt="Customer review"
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                             </div>
+
+                                                            {currReview.rating > 0 && (
+                                                                <div className="flex gap-0.5 mb-3">
+                                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                                        <Star
+                                                                            key={s}
+                                                                            className={`w-3.5 h-3.5 ${s <= currReview.rating ? 'fill-[#8B4356] text-[#8B4356]' : 'text-zinc-200'}`}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            )}
 
                                                             <p className="text-sm md:text-base font-medium font-assistant text-zinc-800 max-w-sm mx-auto leading-relaxed text-center">
                                                                 "{currReview.comment}"
@@ -1663,6 +1974,11 @@ const ProductDetails = () => {
                                                             <span className="font-serif text-sm md:text-base text-zinc-900 font-bold text-center">
                                                                 {currReview.userId?.name || 'Anonymous'}
                                                             </span>
+                                                            {currReview.isVerifiedPurchase && (
+                                                                <span className="mt-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600">
+                                                                    Verified Purchase
+                                                                </span>
+                                                            )}
                                                         </motion.div>
                                                     </AnimatePresence>
                                                 </div>
@@ -1670,6 +1986,7 @@ const ProductDetails = () => {
                                                 <button
                                                     onClick={() => setActiveReviewIdx(prev => prev === allReviewsList.length - 1 ? 0 : prev + 1)}
                                                     className="p-1.5 text-[#1D5C8A] hover:scale-125 transition-transform outline-none shrink-0"
+                                                    aria-label="Next review"
                                                 >
                                                     <ChevronRight className="w-6 h-6 md:w-7 md:h-7 stroke-[3px]" />
                                                 </button>

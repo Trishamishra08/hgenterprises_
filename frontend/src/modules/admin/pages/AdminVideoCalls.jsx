@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Video, Plus, Trash2, Phone, Check, X, Calendar } from 'lucide-react';
+import { Video, Plus, Trash2, Phone, Check, X, Calendar, Share2, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../../utils/api';
 
@@ -13,7 +13,11 @@ function whenLabel(b) {
 export default function AdminVideoCalls() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const tab = searchParams.get('tab') === 'slots' ? 'slots' : 'requests';
+    const tabParam = searchParams.get('tab');
+    const tab = ['slots', 'sellers'].includes(tabParam) ? tabParam : 'requests';
+    const [sellers, setSellers] = useState([]);
+    const [redirectChoice, setRedirectChoice] = useState({}); // bookingId -> sellerId
+    const [sellerForm, setSellerForm] = useState({ name: '', phone: '' });
     const [slots, setSlots] = useState([]);
     const [bookings, setBookings] = useState([]);
     const [form, setForm] = useState({ date: '', startTime: '', endTime: '', capacity: 1, note: '' });
@@ -24,12 +28,14 @@ export default function AdminVideoCalls() {
 
     const load = async () => {
         try {
-            const [s, b] = await Promise.all([
+            const [s, b, sel] = await Promise.all([
                 api.get('/video-calls/slots/all'),
                 api.get('/video-calls/bookings'),
+                api.get('/video-calls/sellers'),
             ]);
             setSlots(s.data || []);
             setBookings(b.data || []);
+            setSellers(sel.data || []);
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to load');
         } finally {
@@ -80,12 +86,63 @@ export default function AdminVideoCalls() {
         }
     };
 
+    const redirect = async (id, sellerId) => {
+        setBusyId(id);
+        try {
+            const { data } = await api.post(`/video-calls/bookings/${id}/redirect`, { sellerId });
+            setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, ...data } : b)));
+            toast.success(sellerId ? `Redirected to ${data.assignedSeller?.name || 'seller'} — send them the details on WhatsApp` : 'Request taken back');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Redirect failed');
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const addSeller = async (e) => {
+        e.preventDefault();
+        try {
+            const { data } = await api.post('/video-calls/sellers', sellerForm);
+            setSellers((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+            setSellerForm({ name: '', phone: '' });
+            toast.success('Seller added');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not add seller');
+        }
+    };
+
+    const removeSeller = async (id) => {
+        try {
+            await api.delete(`/video-calls/sellers/${id}`);
+            setSellers((prev) => prev.filter((s) => s._id !== id));
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Could not remove seller');
+        }
+    };
+
+    // WhatsApp message the admin sends to the seller with the customer's details
+    const sellerWhatsAppLink = (b) => {
+        const phone = String(b.assignedSeller?.phone || '').replace(/\D/g, '');
+        const full = phone.length === 10 ? `91${phone}` : phone;
+        const text = [
+            'Video call request from HG Enterprises',
+            `Customer: ${b.contactName || b.user?.name || ''}`,
+            `Phone: ${b.user?.phone || ''}`,
+            `When: ${whenLabel(b)}`,
+            `Designs: ${(b.products || []).map((p) => p.name).join(', ')}`,
+            b.note ? `Note: ${b.note}` : '',
+            'Please call the customer at the scheduled time.',
+        ].filter(Boolean).join('\n');
+        return `https://wa.me/${full}?text=${encodeURIComponent(text)}`;
+    };
+
     if (loading) {
         return <div className="p-8 text-sm text-gray-500">Loading video call desk...</div>;
     }
 
     const pending = bookings.filter((b) => b.status === 'pending_admin');
     const ready = bookings.filter((b) => b.status === 'confirmed');
+    const redirected = bookings.filter((b) => b.status === 'redirected');
 
     return (
         <div className="p-4 md:p-8 max-w-5xl">
@@ -111,6 +168,15 @@ export default function AdminVideoCalls() {
                     </button>
                     <button
                         type="button"
+                        onClick={() => setTab('sellers')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                            tab === 'sellers' ? 'bg-[#3E2723] text-white' : 'bg-white border text-gray-600'
+                        }`}
+                    >
+                        Sellers
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => setTab('requests')}
                         className={`relative px-3 py-1.5 rounded-full text-xs font-semibold ${
                             tab === 'requests' ? 'bg-[#3E2723] text-white' : 'bg-white border text-gray-600'
@@ -126,7 +192,47 @@ export default function AdminVideoCalls() {
                 </div>
             </div>
 
-            {tab === 'slots' ? (
+            {tab === 'sellers' ? (
+                <div className="space-y-4 max-w-2xl">
+                    <p className="text-sm text-gray-500">
+                        Add the phone number of any seller. Sellers need no account or panel — when you redirect a request,
+                        the customer is told who will contact them and you can send the seller the details on WhatsApp.
+                    </p>
+                    <form onSubmit={addSeller} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+                        <input
+                            required
+                            value={sellerForm.name}
+                            onChange={(e) => setSellerForm({ ...sellerForm, name: e.target.value })}
+                            placeholder="Seller name"
+                            className="border rounded-lg px-3 py-2 text-sm"
+                        />
+                        <input
+                            required
+                            inputMode="tel"
+                            value={sellerForm.phone}
+                            onChange={(e) => setSellerForm({ ...sellerForm, phone: e.target.value })}
+                            placeholder="Phone number"
+                            className="border rounded-lg px-3 py-2 text-sm"
+                        />
+                        <button type="submit" className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-[#3E2723] text-white text-xs font-bold">
+                            <UserPlus className="w-3.5 h-3.5" /> Add seller
+                        </button>
+                    </form>
+                    <div className="space-y-2">
+                        {sellers.length === 0 ? (
+                            <p className="text-sm text-gray-500 text-center py-8 border border-dashed rounded-2xl">No sellers yet.</p>
+                        ) : sellers.map((s) => (
+                            <div key={s._id} className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold text-[#3E2723]">{s.name}</p>
+                                    <p className="text-xs text-gray-500">{s.phone}</p>
+                                </div>
+                                <button type="button" onClick={() => removeSeller(s._id)} className="text-xs text-gray-400 hover:text-red-600">Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : tab === 'slots' ? (
                 <div className="space-y-6">
                     <form
                         onSubmit={createSlot}
@@ -236,6 +342,7 @@ export default function AdminVideoCalls() {
                                             <p className="text-xs text-gray-600 mt-1">
                                                 {whenLabel(b)} · {b.products?.length || 0} designs
                                             </p>
+                                
                                         </div>
                                         {b.callId && (
                                             <button
@@ -296,6 +403,31 @@ export default function AdminVideoCalls() {
                                                 </button>
                                             </div>
                                         </div>
+                                        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                                            <Share2 className="w-3.5 h-3.5 text-gray-400" />
+                                            {sellers.length === 0 ? (
+                                                <span className="text-xs text-gray-400">No sellers yet — add one in the Sellers tab to redirect calls.</span>
+                                            ) : (
+                                                <>
+                                                    <select
+                                                        value={redirectChoice[b._id] || ''}
+                                                        onChange={(e) => setRedirectChoice((prev) => ({ ...prev, [b._id]: e.target.value }))}
+                                                        className="border rounded-lg px-2 py-1.5 text-xs"
+                                                    >
+                                                        <option value="">Redirect to seller…</option>
+                                                        {sellers.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                                    </select>
+                                                    <button
+                                                        type="button"
+                                                        disabled={!redirectChoice[b._id] || busyId === b._id}
+                                                        onClick={() => redirect(b._id, redirectChoice[b._id])}
+                                                        className="px-3 py-1.5 rounded-full bg-[#3E2723] text-white text-xs font-bold disabled:opacity-40"
+                                                    >
+                                                        Redirect
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                         <div className="mt-3 flex gap-2 overflow-x-auto">
                                             {(b.products || []).map((p) => (
                                                 <div key={p.product} className="shrink-0 w-16 text-center">
@@ -315,6 +447,40 @@ export default function AdminVideoCalls() {
                             </div>
                         )}
                     </div>
+
+                    {redirected.length > 0 && (
+                        <div>
+                            <h2 className="text-xs font-bold uppercase tracking-wider text-[#8B4356] mb-2">
+                                Redirected to sellers ({redirected.length})
+                            </h2>
+                            <div className="space-y-2">
+                                {redirected.map((b) => (
+                                    <div key={b._id} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-[#3E2723]">{b.contactName || b.user?.name}</p>
+                                            <p className="text-xs text-gray-500">{whenLabel(b)} · {b.products?.length || 0} designs</p>
+                                            <p className="text-xs text-[#8B4356] mt-1">
+                                                Seller: {b.assignedSeller?.name} · {b.assignedSeller?.phone}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <a
+                                                href={sellerWhatsAppLink(b)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="px-3 py-2 rounded-full bg-[#25D366] text-white text-xs font-bold"
+                                            >
+                                                Send details on WhatsApp
+                                            </a>
+                                            <button type="button" disabled={busyId === b._id} onClick={() => redirect(b._id, null)} className="text-xs text-gray-500 underline">
+                                                Take back
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div>
                         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">

@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Package, ShoppingCart, Users, User, Image as ImageIcon,
     Bell, ChevronRight, ChevronDown, Star, HelpCircle, LogOut, Menu, X, ListTree,
     FileText, MessageSquare, Ticket, Settings, Plus, List, BookOpen,
     Clock, RefreshCw, RefreshCcw, RotateCcw, Boxes, ClipboardList, MapPin, Truck, CheckCircle2, XCircle,
-    AlertTriangle, FileBarChart, Percent, Video, Calendar
+    AlertTriangle, FileBarChart, Percent, Video, Calendar, SlidersHorizontal, ScrollText, PlayCircle, Library, Share2, KeyRound
 } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import api from '../../../utils/api';
@@ -13,6 +13,7 @@ import { getSocket } from '../../../utils/socket';
 import { playAdminIncomingRing, unlockAdminRingtone } from '../../../utils/adminRingtone';
 import logo from '../../user/assets/logo_final.jpg';
 import logoName from '../../user/assets/logo_final.jpg';
+import '../admin.css';
 
 const AdminLayout = ({ children }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -94,7 +95,8 @@ const AdminLayout = ({ children }) => {
             path: '/admin/products',
             subItems: [
                 { name: 'Add Product', path: '/admin/products/new', icon: Plus },
-                { name: 'Product List', path: '/admin/products', icon: List }
+                { name: 'Product List', path: '/admin/products', icon: List },
+                { name: 'Attributes (Colour, Size)', path: '/admin/attributes', icon: SlidersHorizontal }
             ]
         },
         { name: 'Coupons', icon: Ticket, path: '/admin/coupons' },
@@ -132,6 +134,7 @@ const AdminLayout = ({ children }) => {
             badge: vcPendingCount,
             subItems: [
                 { name: 'Add Time Slots', path: '/admin/video-calls?tab=slots', icon: Calendar },
+                { name: 'Sellers', path: '/admin/video-calls?tab=sellers', icon: Users },
                 {
                     name: vcPendingCount > 0 ? `User Requests (${vcPendingCount})` : 'User Requests',
                     path: '/admin/video-calls?tab=requests',
@@ -164,8 +167,19 @@ const AdminLayout = ({ children }) => {
                 { name: 'About Us', path: '/admin/about-us', icon: FileText },
             ]
         },
+        {
+            name: 'Resource Centre',
+            icon: Library,
+            path: '/admin/resources',
+            subItems: [
+                { name: 'Guidelines', path: '/admin/guidelines', icon: BookOpen },
+                { name: 'Govt. Policies', path: '/admin/policies', icon: ScrollText },
+                { name: 'Videos', path: '/admin/videos', icon: PlayCircle },
+            ]
+        },
         { name: 'Blogs', icon: BookOpen, path: '/admin/blogs' },
         { name: 'Sections', icon: LayoutDashboard, path: '/admin/sections' },
+        { name: 'Social Media', icon: Share2, path: '/admin/social' },
         { name: 'Platform Config', icon: LayoutDashboard, path: '/admin/platform-settings' },
         { name: 'Global Settings', icon: Settings, path: '/admin/settings' },
 
@@ -179,6 +193,19 @@ const AdminLayout = ({ children }) => {
         );
         return activeItem ? activeItem.name : null;
     });
+
+    // Keep the sidebar's scroll position across route changes / re-renders
+    const sidebarScrollRef = useRef(null);
+    const SIDEBAR_SCROLL_KEY = 'hg_admin_sidebar_scroll';
+    useLayoutEffect(() => {
+        const el = sidebarScrollRef.current;
+        if (!el) return;
+        let saved = 0;
+        try { saved = Number(sessionStorage.getItem(SIDEBAR_SCROLL_KEY)) || 0; } catch (_) { /* ignore */ }
+        el.scrollTop = saved;
+    }, [location.pathname, location.search, expandedMenu]);
+
+    const [accountOpen, setAccountOpen] = useState(false);
 
     const handleLogout = () => {
         localStorage.removeItem('adminAuth');
@@ -198,34 +225,7 @@ const AdminLayout = ({ children }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#FDF5F6] text-gray-900 font-outfit admin-font-reset relative flex">
-            <style>{`
-                .admin-font-reset, .admin-font-reset * {
-                    font-family: 'Outfit', sans-serif !important;
-                }
-                .font-serif {
-                    font-family: 'Playfair Display', serif !important;
-                }
-                .sidebar-scroll::-webkit-scrollbar {
-                    width: 6px;
-                }
-                .sidebar-scroll::-webkit-scrollbar-track {
-                    background: rgba(255, 255, 255, 0.02);
-                }
-                .sidebar-scroll::-webkit-scrollbar-thumb {
-                    background: rgba(212, 175, 55, 0.5);
-                    border-radius: 0px;
-                }
-                .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-                    background: rgba(212, 175, 55, 0.8);
-                }
-                .sidebar-scroll {
-                    scrollbar-width: thin;
-                    scrollbar-color: rgba(212, 175, 55, 0.5) transparent;
-                    -ms-overflow-style: auto;
-                    overflow-y: auto !important;
-                }
-            `}</style>
+        <div className="admin-root min-h-screen bg-[#F5F6F8] text-gray-900 relative flex">
             {/* Sidebar Backdrop (Mobile only) */}
             {isSidebarOpen && (
                 <div
@@ -249,8 +249,8 @@ const AdminLayout = ({ children }) => {
                         <div className="flex items-center gap-2">
                             <img src={logoName} alt="HG" className="h-10 w-auto object-contain mix-blend-screen" />
                             <div className="flex flex-col">
-                                <span className="font-serif font-black text-[10px] tracking-[0.2em] uppercase text-white leading-none">HG Enterprises</span>
-                                <span className="text-[7px] text-gold font-bold uppercase tracking-[0.4em] mt-1 italic">Administrative Portal</span>
+                                <span className="font-semibold text-[14px] tracking-wide text-white leading-none">HG Enterprises</span>
+                                <span className="text-[11px] text-white/50 font-medium mt-1">Admin Portal</span>
                             </div>
                         </div>
                     ) : (
@@ -266,7 +266,12 @@ const AdminLayout = ({ children }) => {
                 </div>
 
                 {/* Scrollable Container for Nav */}
-                <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll bg-black">
+                <div
+                    ref={sidebarScrollRef}
+                    onScroll={(e) => { try { sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(e.currentTarget.scrollTop)); } catch (_) { /* ignore */ } }}
+                    data-lenis-prevent
+                    className="flex-1 min-h-0 admin-sidebar-scroll bg-black"
+                >
                     <nav className="py-4 space-y-0.5 pb-20">
                         {menuItems.map((item) => {
                             const isActive = location.pathname === item.path || (item.subItems && location.pathname.startsWith(item.path));
@@ -276,15 +281,15 @@ const AdminLayout = ({ children }) => {
                                 <div key={item.name} className="flex flex-col px-2">
                                     <button
                                         onClick={() => handleMenuClick(item)}
-                                        className={`relative flex items-center gap-3 px-4 py-2 transition-all w-full text-left rounded-none group ${isActive
-                                            ? 'bg-white/5 text-gold border-r-2 border-gold font-black'
+                                        className={`relative flex items-center gap-3 px-4 py-2.5 transition-all w-full text-left rounded-md group ${isActive
+                                            ? 'bg-white/10 text-gold border-r-2 border-gold'
                                             : 'text-white/50 hover:bg-white/5 hover:text-white'
                                             }`}
                                     >
                                         <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-gold' : 'group-hover:text-gold transition-colors'}`} />
                                         {(isSidebarOpen || window.innerWidth <= 1024) && (
                                             <>
-                                                <span className={`text-[10px] uppercase tracking-widest flex-1 font-outfit ${isActive ? 'text-gold' : ''}`}>{item.name}</span>
+                                                <span className={`text-[13px] font-medium flex-1 ${isActive ? 'text-gold' : ''}`}>{item.name}</span>
                                                 {item.badge > 0 && (
                                                     <span className="min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
                                                         {item.badge > 9 ? '9+' : item.badge}
@@ -314,13 +319,13 @@ const AdminLayout = ({ children }) => {
                                                     <button
                                                         key={subItem.path}
                                                         onClick={() => navigate(subItem.path)}
-                                                        className={`flex items-center gap-3 pl-10 pr-4 py-1 w-full text-left transition-all ${isSubActive
-                                                            ? 'text-gold font-bold bg-white/5'
+                                                        className={`flex items-center gap-3 pl-11 pr-4 py-2 w-full text-left transition-all ${isSubActive
+                                                            ? 'text-gold bg-white/5'
                                                             : 'text-white/40 hover:text-gold hover:bg-white/5'
                                                             }`}
                                                     >
                                                         <subItem.icon className="w-3 h-3" />
-                                                        <span className="text-[9px] uppercase tracking-widest font-black font-outfit">{subItem.name}</span>
+                                                        <span className="text-[12.5px] font-medium">{subItem.name}</span>
                                                     </button>
                                                 )
                                             })}
@@ -339,13 +344,13 @@ const AdminLayout = ({ children }) => {
                         className="flex items-center gap-4 text-white/30 hover:text-red-400 transition-colors w-full px-4 py-2"
                     >
                         <LogOut className="w-4 h-4" />
-                        {(isSidebarOpen || window.innerWidth <= 1024) && <span className="text-[10px] uppercase tracking-widest font-black font-outfit">Logout Session</span>}
+                        {(isSidebarOpen || window.innerWidth <= 1024) && <span className="text-[13px] font-medium">Logout</span>}
                     </button>
                 </div>
             </aside>
 
             {/* Main Content Area */}
-            <main className={`flex-grow flex flex-col min-h-screen bg-[#FDF5F6] transition-all duration-500 ease-in-out ${isSidebarOpen ? 'lg:ml-[230px]' : 'lg:ml-20'}`}>
+            <main className={`flex-grow flex flex-col min-h-screen bg-[#F5F6F8] transition-all duration-500 ease-in-out ${isSidebarOpen ? 'lg:ml-[230px]' : 'lg:ml-20'}`}>
                 {/* Topbar */}
                 <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40 shrink-0 shadow-sm">
                     <div className="flex items-center gap-3 lg:gap-4">
@@ -355,18 +360,46 @@ const AdminLayout = ({ children }) => {
                         >
                             <Menu className="w-4 h-4 text-gray-500" />
                         </button>
-                        <h2 className="text-xs font-serif font-black text-black uppercase tracking-widest line-clamp-1">
-                            {menuItems.find(i => i.path === location.pathname)?.name || 'Platform Config'}
+                        <h2 className="text-[15px] font-semibold text-gray-900 line-clamp-1">
+                            {menuItems.flatMap(i => [i, ...(i.subItems || [])]).find(i => i.path === location.pathname)?.name || menuItems.find(i => location.pathname.startsWith(i.path) && i.path !== '/admin')?.name || 'Dashboard'}
                         </h2>
                     </div>
 
                     <div className="flex items-center gap-2 lg:gap-4">
                         <div className="text-right hidden sm:block font-serif">
-                            <p className="text-[10px] text-black font-black uppercase tracking-tight">Admin Portal</p>
-                            <p className="text-[8px] text-gray-400 font-bold uppercase tracking-[0.2em] italic">Super User</p>
+                            <p className="text-[13px] text-gray-900 font-semibold">Admin Portal</p>
+                            <p className="text-[11px] text-gray-500">Super User</p>
                         </div>
-                        <div className="w-8 h-8 bg-gray-50 rounded-none border border-gray-100 flex items-center justify-center text-black font-serif font-black shadow-sm italic">
-                            A
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setAccountOpen((o) => !o)}
+                                aria-label="Account menu"
+                                className="w-9 h-9 bg-gray-900 text-white rounded-full flex items-center justify-center font-semibold"
+                            >
+                                A
+                            </button>
+                            {accountOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setAccountOpen(false)} />
+                                    <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setAccountOpen(false); navigate('/admin/settings#security'); }}
+                                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                                        >
+                                            <KeyRound className="w-4 h-4" /> Change password
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setAccountOpen(false); handleLogout(); }}
+                                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                        >
+                                            <LogOut className="w-4 h-4" /> Logout
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </header>
@@ -404,7 +437,7 @@ const AdminLayout = ({ children }) => {
                 )}
 
                 {/* Sequential Page Content */}
-                <div className="bg-[#FDF5F6]">
+                <div className="bg-[#F5F6F8]">
                     <div className="p-3 lg:p-5 space-y-4 max-w-[1600px] mx-auto animate-in fade-in duration-500">
                         {children}
                     </div>

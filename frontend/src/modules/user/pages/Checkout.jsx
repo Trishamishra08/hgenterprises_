@@ -16,6 +16,7 @@ const Checkout = () => {
         sendOTP,
         verifyOTP,
         showNotification,
+        registerPaidOrder,
         settings,
         orders
     } = useShop();
@@ -163,83 +164,87 @@ const Checkout = () => {
         e.preventDefault();
         setLoading(true);
 
-        const orderData = {
-            items: checkoutItems,
-            shippingAddress: formData,
-            paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'cod',
-            amount: total,
-            discount: discount,
-            couponCode: appliedCoupon?.code
-        };
-
-        // Handle Online Payment
-        if (paymentMethod === 'online') {
-            const isLoaded = await loadRazorpay();
-            if (!isLoaded) {
-                showNotification("Razorpay SDK failed to load. Check your connection.");
-                setLoading(false);
-                return;
-            }
-
-            try {
-                // 1. Create Razorpay Order on Backend
-                const response = await api.post('/payments/razorpay/create', { amount: total });
-                const order = response.data;
-
-                const options = {
-                    key: 'rzp_test_8sYbzHWidwe5Zw',
-                    amount: order.amount,
-                    currency: order.currency,
-                    name: "HG Enterprises",
-                    description: "Premium Jewellery Purchase",
-                    order_id: order.id,
-                    handler: async (response) => {
-                        try {
-                            // 2. Verify Payment on Backend
-                            const verifyRes = await api.post('/payments/razorpay/verify', response);
-                            if (verifyRes.data.success) {
-                                // 3. Place actual order
-                                const orderId = await placeOrder({ ...orderData, razorpay_payment_id: response.razorpay_payment_id });
-                                if (orderId) navigate('/order-success');
-                            }
-                        } catch (err) {
-                            showNotification("Payment verification failed");
-                        }
-                    },
-                    prefill: {
-                        name: formData.name,
-                        email: formData.email,
-                        contact: formData.phone,
-                    },
-                    theme: { color: "#D39A9F" },
-                };
-
-                const paymentObject = new window.Razorpay(options);
-                paymentObject.open();
-
-                paymentObject.on('payment.failed', function (response) {
-                    showNotification("Payment Failed: " + response.error.description);
-                });
-
-            } catch (error) {
-                console.error("Order creation failed", error);
-                showNotification("Could not initiate payment");
-            } finally {
-                setLoading(false);
-            }
-            return;
-        }
-
-        // Handle COD Flow
         if (addressSelection === 'new' && saveNewAddress) {
             await addAddress(formData);
         }
 
-        const orderId = await placeOrder(orderData);
-        setLoading(false);
-        if (orderId) {
-            navigate('/order-success');
+        // Prices, discount, shipping and GST are recomputed by the server; only these fields are sent
+        const orderData = {
+            items: checkoutItems,
+            shippingAddress: formData,
+            paymentMethod: paymentMethod === 'online' ? 'razorpay' : 'cod',
+            couponCode: appliedCoupon?.code
+        };
+
+        // Cash on Delivery: server confirms the order immediately
+        if (paymentMethod !== 'online') {
+            const orderId = await placeOrder(orderData);
+            setLoading(false);
+            if (orderId) navigate('/order-success');
+            return;
         }
+
+        // Online: 1) server creates the order + gateway order, 2) customer pays, 3) server verifies the signature
+        const isLoaded = await loadRazorpay();
+        if (!isLoaded) {
+            showNotification("Razorpay SDK failed to load. Check your connection.");
+            setLoading(false);
+            return;
+        }
+
+        let created;
+        try {
+            const res = await api.post('/orders/place', orderData);
+            created = res.data;
+        } catch (error) {
+            showNotification(error.response?.data?.message || "Could not start payment");
+            setLoading(false);
+            return;
+        }
+
+        const { order, razorpay } = created;
+        let settled = false;
+
+        const options = {
+            key: razorpay.key,
+            amount: razorpay.amount,
+            currency: razorpay.currency,
+            name: "HG Enterprises",
+            description: `Order ${order.orderId}`,
+            order_id: razorpay.orderId,
+            handler: async (response) => {
+                settled = true;
+                try {
+                    const verifyRes = await api.post('/payments/razorpay/verify', response);
+                    if (verifyRes.data.success) {
+                        registerPaidOrder(verifyRes.data.order);
+                        navigate('/order-success');
+                    }
+                } catch (err) {
+                    showNotification("Payment received but verification failed. Please contact support with order " + order.orderId);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            modal: {
+                // Closed without paying → release the unpaid order
+                ondismiss: async () => {
+                    if (!settled) {
+                        try { await api.post('/payments/razorpay/failed', { razorpay_order_id: razorpay.orderId }); } catch (_) { /* ignore */ }
+                        showNotification("Payment cancelled");
+                        setLoading(false);
+                    }
+                },
+            },
+            prefill: { name: formData.name, email: formData.email, contact: formData.phone },
+            theme: { color: "#8B4356" },
+        };
+
+        const paymentObject = new window.Razorpay(options);
+        paymentObject.on('payment.failed', (response) => {
+            showNotification("Payment failed: " + response.error.description + " You can retry.");
+        });
+        paymentObject.open();
     };
 
     // Pre-fill default address or existing selection

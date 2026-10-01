@@ -8,6 +8,7 @@ const PlatformSettingsPage = () => {
     const { settings } = useShop();
     const [gstPercentage, setGstPercentage] = useState(18);
     const [shippingCharge, setShippingCharge] = useState(50);
+    const [codMaxAmount, setCodMaxAmount] = useState(50000);
     const [saving, setSaving] = useState(false);
     const [savingPdf, setSavingPdf] = useState(false);
     const [pdfExpanded, setPdfExpanded] = useState(true);
@@ -29,6 +30,7 @@ const PlatformSettingsPage = () => {
         if (settings) {
             setGstPercentage(settings.gstPercentage || 18);
             setShippingCharge(settings.shippingCharge || 50);
+            setCodMaxAmount(settings.codMaxAmount ?? 50000);
             if (settings.pdfBrochure) {
                 setPdfBrochure(prev => ({ ...prev, ...settings.pdfBrochure }));
             }
@@ -40,7 +42,8 @@ const PlatformSettingsPage = () => {
         try {
             await api.post('/settings', {
                 gstPercentage: Number(gstPercentage),
-                shippingCharge: Number(shippingCharge)
+                shippingCharge: Number(shippingCharge),
+                codMaxAmount: Number(codMaxAmount)
             });
             toast.success("Platform configurations updated successfully");
         } catch (error) {
@@ -165,6 +168,17 @@ const PlatformSettingsPage = () => {
                                 />
                                 <div className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-300 font-bold">₹</div>
                             </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Cash on Delivery limit (₹)</label>
+                            <input
+                                type="number"
+                                value={codMaxAmount}
+                                onChange={e => setCodMaxAmount(e.target.value)}
+                                placeholder="e.g. 50000"
+                                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-xl font-bold text-black focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all placeholder:text-gray-200"
+                            />
+                            <p className="text-[11px] text-gray-400 ml-1">Orders above this amount must be paid online.</p>
                         </div>
                         <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 flex gap-3">
                             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />

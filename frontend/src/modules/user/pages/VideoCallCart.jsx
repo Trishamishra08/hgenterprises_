@@ -12,71 +12,49 @@ import {
     groupVcItemsByDepartment,
 } from '../../../utils/videoCallCart';
 
-function CartSection({ title, items, onRemove, onSchedule }) {
+function CartSection({ title, items, onRemove, onSchedule, loggedIn }) {
     if (!items.length) return null;
     return (
-        <div className="mb-10">
-            <h2 className="font-serif text-xl md:text-2xl text-[#3E2723] mb-5">
-                {title}{' '}
-                <span className="text-base font-sans text-[#C5A059]">({items.length})</span>
+        <div className="mb-14">
+            <h2 className="text-2xl md:text-[28px] tracking-[0.12em] text-[#2b3a67] mb-5">
+                {title} ({items.length})
             </h2>
-            <div className="space-y-5">
+            <div className="space-y-10">
                 {items.map((item) => (
-                    <div
-                        key={item.product}
-                        className="bg-white border border-[#EBCDD0] rounded-2xl p-4 flex gap-4 shadow-sm"
-                    >
-                        <img
-                            src={item.image || '/placeholder.png'}
-                            alt={item.name}
-                            className="w-24 h-24 md:w-28 md:h-28 object-contain bg-[#FDF5F6] rounded-xl border border-[#EBCDD0]/60"
-                        />
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-serif text-lg text-[#3E2723]">{item.name}</h3>
-                            <p className="text-xs text-[#3E2723]/45 mt-0.5">Product Code: {item.code}</p>
-                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs text-[#3E2723]/70">
-                                {item.metal && (
-                                    <p>
-                                        <span className="font-semibold text-[#3E2723]">Metal:</span> {item.metal}
-                                    </p>
-                                )}
-                                {item.stone && (
-                                    <p>
-                                        <span className="font-semibold text-[#3E2723]">Stone:</span> {item.stone}
-                                    </p>
-                                )}
+                    <div key={item.product} className="flex flex-col sm:flex-row gap-0 sm:gap-3">
+                        <div className="sm:w-[277px] shrink-0 bg-[#f2f2f2] aspect-square flex items-center justify-center">
+                            <img src={item.image || '/placeholder.png'} alt={item.name} className="w-full h-full object-contain" />
+                        </div>
+                        <div className="flex-1 min-w-0 bg-white">
+                            <div className="px-6 pt-4 pb-2">
+                                <h3 className="text-2xl text-[#1f1f1f]">{item.name}</h3>
+                                <p className="text-sm tracking-wide text-zinc-500">Product Code: {item.code}</p>
                             </div>
-                            <div className="mt-3 flex gap-4 text-[11px] font-semibold tracking-wide">
-                                <button
-                                    type="button"
-                                    onClick={() => onRemove(item.product)}
-                                    className="text-[#6b252c] hover:underline inline-flex items-center gap-1"
-                                >
-                                    <Trash2 className="w-3 h-3" /> REMOVE
+                            <div>
+                                {[['Metal', item.metal], ['Stone', item.stone]].filter(([, v]) => v).map(([label, value]) => (
+                                    <div key={label} className="flex border-t border-zinc-100 text-[17px]">
+                                        <div className="w-[214px] shrink-0 bg-[#f6f6f8] px-6 py-2.5 text-zinc-600">{label}</div>
+                                        <div className="px-6 py-2.5 text-zinc-800">{value}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-6 flex items-center border-y border-zinc-200 text-[15px] tracking-wide">
+                                <button type="button" onClick={() => onRemove(item.product)} className="px-5 py-3 text-zinc-800 hover:text-[#6b252c] border-r border-zinc-200">
+                                    REMOVE
                                 </button>
-                                <Link
-                                    to="/wishlist"
-                                    className="text-[#3E2723]/50 hover:text-[#C5A059] hover:underline inline-flex items-center gap-1"
-                                >
-                                    <Heart className="w-3 h-3" /> MOVE TO WISHLIST
+                                <Link to="/wishlist" className="px-5 py-3 text-zinc-800 hover:text-[#6b252c]">
+                                    MOVE TO WISHLIST{!loggedIn && <span className="text-xs ml-1">(Need login first)</span>}
                                 </Link>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 pt-6">
-                <Link
-                    to="/shop"
-                    className="flex-1 text-center py-3 border border-[#3E2723]/25 rounded-full text-sm font-semibold tracking-wide text-[#3E2723] hover:bg-white inline-flex items-center justify-center gap-2"
-                >
-                    <Plus className="w-4 h-4" /> ADD MORE
+            <div className="flex flex-wrap gap-3 pt-12">
+                <Link to="/shop" className="px-8 py-4 bg-[#ececec] text-[#444] tracking-[0.2em] text-lg hover:bg-[#e2e2e2] transition-colors">
+                    ADD MORE
                 </Link>
-                <button
-                    type="button"
-                    onClick={onSchedule}
-                    className="flex-1 py-3 rounded-full text-sm font-bold tracking-wide text-white bg-[#3E2723] hover:bg-[#4a322c] transition-colors"
-                >
+                <button type="button" onClick={onSchedule} className="px-6 py-4 bg-[#5aa51a] text-white text-lg tracking-wide shadow hover:bg-[#4d9114] transition-colors">
                     SCHEDULE VIDEO CALL
                 </button>
             </div>
@@ -229,41 +207,38 @@ export default function VideoCallCart() {
                 ) : (
                     <>
                         <CartSection
-                            title="Jewellery Video Call Cart"
+                            title="Video Call Cart Items"
                             items={jewellery}
                             onRemove={removeItem}
+                            loggedIn={Boolean(user)}
                             onSchedule={() => goSchedule('jewellery')}
                         />
                         <CartSection
-                            title="Tools & Machines Video Call Cart"
+                            title="Tools & Machines Video Call Items"
                             items={toolsMachines}
                             onRemove={removeItem}
+                            loggedIn={Boolean(user)}
                             onSchedule={() => goSchedule('tools-machines')}
                         />
                     </>
                 )}
 
-                <div className="pt-2">
-                    <h3 className="text-sm font-semibold text-[#3E2723] mb-4">How does it work?</h3>
-                    <div className="grid grid-cols-3 gap-4 text-center text-[11px] text-[#3E2723]/55">
-                        <div>
-                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white border border-[#EBCDD0] flex items-center justify-center text-[#C5A059]">
-                                ◆
-                            </div>
-                            Add up to 5 designs
-                        </div>
-                        <div>
-                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white border border-[#EBCDD0] flex items-center justify-center">
-                                <Video className="w-4 h-4 text-[#C5A059]" />
-                            </div>
-                            Schedule & enter details
-                        </div>
-                        <div>
-                            <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-white border border-[#EBCDD0] flex items-center justify-center">
-                                <Lock className="w-4 h-4 text-[#C5A059]" />
-                            </div>
-                            Admin + you approve
-                        </div>
+                <div className="bg-white mt-10 px-6 py-10">
+                    <h3 className="text-center text-4xl text-[#1f1f1f] tracking-wide">How does it work?</h3>
+                    <div className="w-24 h-0.5 bg-[#2b3a67] mx-auto mt-3 mb-10" />
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-6 items-start text-center text-sm text-zinc-600">
+                        {[
+                            { icon: <span className="text-2xl text-[#1f1f1f]">◆</span>, t: 'CURATE YOUR SELECTIONS', d: 'Add 1 to 5 designs that catch your eye' },
+                            { icon: <Video className="w-6 h-6 text-[#1f1f1f]" />, t: 'BROWSE YOUR PICKS VIRTUALLY', d: 'Our representative will call you to showcase them live' },
+                            { icon: <Lock className="w-6 h-6 text-[#1f1f1f]" />, t: 'MAKE THE PERFECT CHOICE', d: 'Shortlist your favourites and request approval' },
+                        ].flatMap((step, i) => [
+                            <div key={step.t}>
+                                <div className="w-[76px] h-[76px] mx-auto mb-4 rounded-full border border-zinc-800 flex items-center justify-center">{step.icon}</div>
+                                <p className="tracking-wide text-[#1f1f1f]">{step.t}</p>
+                                <p className="mt-2 text-zinc-500">{step.d}</p>
+                            </div>,
+                            i < 2 ? <span key={'a' + i} className="hidden md:block self-center text-4xl text-[#ef5f3f] mt-6">→</span> : null,
+                        ])}
                     </div>
                 </div>
             </div>

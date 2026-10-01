@@ -2,6 +2,7 @@ const VideoCallSlot = require('../models/VideoCallSlot');
 const VideoCallBooking = require('../models/VideoCallBooking');
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Seller = require('../models/Seller');
 
 const MAX_VC_CART = 5;
 
@@ -356,6 +357,7 @@ exports.myBookings = async (req, res) => {
     try {
         const bookings = await VideoCallBooking.find({ user: req.user.id })
             .populate('slot')
+            .populate('assignedSeller', 'name')
             .sort({ createdAt: -1 });
         res.json(bookings);
     } catch (error) {
@@ -367,6 +369,7 @@ exports.listBookingsAdmin = async (req, res) => {
     try {
         const bookings = await VideoCallBooking.find()
             .populate('slot')
+            .populate('assignedSeller', 'name phone')
             .populate('user', 'name email phone')
             .sort({ createdAt: -1 });
         res.json(bookings);
@@ -489,6 +492,84 @@ exports.cancelBooking = async (req, res) => {
         }
 
         res.json(booking);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ---------- Seller redirect (admin-managed contacts) ----------
+
+exports.listSellers = async (req, res) => {
+    try {
+        res.json(await Seller.find().sort({ name: 1 }));
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.createSeller = async (req, res) => {
+    try {
+        const { name, phone, note = '' } = req.body;
+        const digits = String(phone || '').replace(/\D/g, '');
+        if (!name?.trim() || digits.length < 10) return res.status(400).json({ message: 'Name and a valid phone number are required' });
+        res.status(201).json(await Seller.create({ name: name.trim(), phone: digits, note }));
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.deleteSeller = async (req, res) => {
+    try {
+        await Seller.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Seller removed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Admin hands a pending request to a seller. The seller has no panel: the customer is told who will
+ * call them, and the admin gets the seller's number (WhatsApp deep link built on the frontend).
+ * sellerId = null takes the request back.
+ */
+exports.redirectBooking = async (req, res) => {
+    try {
+        const { sellerId = null } = req.body;
+        const booking = await VideoCallBooking.findById(req.params.id).populate('slot');
+        if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+        if (!sellerId) {
+            if (booking.status !== 'redirected') return res.status(400).json({ message: 'Request is not redirected' });
+            booking.status = 'pending_admin';
+            booking.assignedSeller = null;
+            booking.redirectedBy = null;
+            booking.redirectedAt = undefined;
+            await booking.save();
+            return res.json(booking);
+        }
+
+        if (booking.status !== 'pending_admin') {
+            return res.status(400).json({ message: 'Only requests awaiting approval can be redirected' });
+        }
+        const seller = await Seller.findOne({ _id: sellerId, isActive: true });
+        if (!seller) return res.status(400).json({ message: 'Seller not found' });
+
+        booking.status = 'redirected';
+        booking.assignedSeller = seller._id;
+        booking.redirectedBy = req.user.id;
+        booking.redirectedAt = new Date();
+        await booking.save();
+
+        const when = booking.slot
+            ? `${booking.slot.date} ${booking.slot.startTime}`
+            : (booking.customSlot?.date ? `${booking.customSlot.date} ${booking.customSlot.startTime}` : 'the requested time');
+        await notifyUser(booking.user, {
+            title: 'Video call: specialist assigned',
+            message: `${seller.name} from our team will contact you for your video consultation (${when}).`,
+            link: '/video-call/bookings',
+        });
+
+        res.json(await booking.populate('assignedSeller', 'name phone'));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

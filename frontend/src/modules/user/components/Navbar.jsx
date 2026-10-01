@@ -264,7 +264,7 @@ const Navbar = () => {
                     <div className="w-full flex items-center justify-between h-7 md:h-9 px-3 md:px-6">
 
                         {/* Logo & Brand Heading */}
-                        <div className="flex items-center gap-2 md:gap-3">
+                        <div className="flex items-center gap-2 md:gap-3 min-w-0 mr-1">
                             <Link to="/" className="flex items-center group flex-shrink-0 gap-2 md:gap-3">
                                 <motion.div
                                     animate={{
@@ -284,8 +284,8 @@ const Navbar = () => {
                                     />
                                 </motion.div>
 
-                                <div className="flex flex-col font-serif">
-                                    <span className="text-white text-[10px] md:text-[14px] font-medium tracking-wider leading-none group-hover:text-[#EBCDD0] transition-colors">
+                                <div className="flex flex-col font-serif min-w-0">
+                                    <span className="text-white text-[10px] md:text-[14px] font-medium tracking-wide leading-none whitespace-nowrap group-hover:text-[#EBCDD0] transition-colors">
                                         Harshad Gauri
                                     </span>
                                     <span className="text-[#FDF5F6]/80 italic text-[7px] md:text-[8px] tracking-normal pb-0 transition-colors group-hover:text-white lowercase">
@@ -324,12 +324,12 @@ const Navbar = () => {
                         </div>
 
                         {/* Icons */}
-                        <div className="flex items-center gap-1 md:gap-4">
+                        <div className="flex items-center gap-0 md:gap-4 shrink-0">
                             {/* Mobile/Tablet Search Toggle */}
                             <button
                                 onClick={() => toggleSearch(!isSearchOpen)}
                                 aria-label="Toggle search"
-                                className="lg:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 group transition-colors"
+                                className="lg:hidden w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 group transition-colors"
                             >
                                 <Search className={`w-5 h-5 transition-colors ${isSearchOpen ? 'text-white' : 'text-white/90 group-hover:text-[#EBCDD0]'}`} />
                             </button>
@@ -340,9 +340,9 @@ const Navbar = () => {
                                 to="/video-call-cart"
                                 aria-label="Start video call"
                                 title="Video Call"
-                                className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors"
+                                className="w-7 h-7 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors"
                             >
-                                <Video className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
+                                <Video className="w-4 h-4 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
                             </Link>
 
                             <Link
@@ -352,28 +352,28 @@ const Navbar = () => {
                                 Video Call
                             </Link>
 
-                            <Link to="/notifications" aria-label="View notifications" className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors">
-                                <Bell className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
-                                <span className="absolute top-2 right-2 w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full border-2 border-black"></span>
+                            <Link to="/notifications" aria-label="View notifications" className="w-7 h-7 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors">
+                                <Bell className="w-4 h-4 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
+                                <span className="absolute top-1 right-1 md:top-2 md:right-2 w-1.5 h-1.5 md:w-2 md:h-2 bg-primary rounded-full border-2 border-black"></span>
                             </Link>
 
-                            <Link to="/stores" aria-label="Find a store" className="flex w-9 h-9 md:w-10 md:h-10 items-center justify-center rounded-full hover:bg-white/10 group transition-colors">
-                                <Store className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
+                            <Link to="/stores" aria-label="Find a store" className="hidden md:flex w-7 h-7 md:w-10 md:h-10 items-center justify-center rounded-full hover:bg-white/10 group transition-colors">
+                                <Store className="w-4 h-4 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
                             </Link>
 
-                            <Link to="/wishlist" aria-label="View wishlist" className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors">
-                                <Heart className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
+                            <Link to="/wishlist" aria-label="View wishlist" className="w-7 h-7 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 relative group transition-colors">
+                                <Heart className="w-4 h-4 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
                                 {wishlist?.length > 0 && (
-                                    <span className="absolute top-2 right-2 bg-primary text-white text-[7px] md:text-[8px] w-3 h-3 md:w-3.5 md:h-3.5 flex items-center justify-center rounded-full font-bold">
+                                    <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-primary text-white text-[7px] md:text-[8px] w-3 h-3 md:w-3.5 md:h-3.5 flex items-center justify-center rounded-full font-bold">
                                         {wishlist.length}
                                     </span>
                                 )}
                             </Link>
 
-                            <Link to="/cart" aria-label="View shopping bag" className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/10 rounded-full group transition-colors relative">
-                                <ShoppingBag className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
+                            <Link to="/cart" aria-label="View shopping bag" className="w-7 h-7 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/10 rounded-full group transition-colors relative">
+                                <ShoppingBag className="w-4 h-4 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" />
                                 {cart?.length > 0 && (
-                                    <span className="absolute top-2 right-2 bg-primary text-white text-[7px] md:text-[8px] w-3 h-3 md:w-3.5 md:h-3.5 flex items-center justify-center rounded-full font-bold">
+                                    <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-primary text-white text-[7px] md:text-[8px] w-3 h-3 md:w-3.5 md:h-3.5 flex items-center justify-center rounded-full font-bold">
                                         {cart.length}
                                     </span>
                                 )}
@@ -387,7 +387,7 @@ const Navbar = () => {
                             <button
                                 onClick={() => toggleMenu(!isMenuOpen)}
                                 aria-label="Toggle menu"
-                                className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 group transition-colors"
+                                className="md:hidden w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 group transition-colors"
                             >
                                 <Menu className="w-5 h-5 text-white group-hover:text-[#EBCDD0] transition-colors" />
                             </button>
@@ -1064,10 +1064,16 @@ const Navbar = () => {
                                 {/* Additional Sidebar Options from Image */}
                                 <div className="px-5 pb-6 space-y-0 flex flex-col border-t border-gray-100 pt-2">
                                     {[
+                                        { name: "Home", path: "/" },
+                                        { name: "Shop", path: "/shop" },
+                                        { name: "Gifts", path: "/shop?tag=gift" },
+                                        { name: "Coins", path: "/shop?tag=coin" },
+                                        { name: "Favourites", path: "/wishlist" },
+                                        { name: "My Profile", path: "/profile" },
                                         { name: "Recently Viewed", path: "/recently-viewed", color: "text-[#FF6B6B]" },
                                         { name: "Video Call", path: "/video-call-cart", color: "text-[#C5A059]" },
                                         { name: "Track Order", path: "/profile/orders" },
-                                        { name: "Jewellery Guide", path: "/guide" },
+                                        { name: "Jewellery Guide", path: "/guidelines/jewellery" },
                                         { name: "Privacy Policy", path: "/privacy" },
                                         { name: "Terms & Conditions", path: "/terms" }
                                     ].map((item, idx) => (
@@ -1102,53 +1108,6 @@ const Navbar = () => {
                     </>
                 )}
             </AnimatePresence>
-            {/* Bottom Nav (Mobile) - Animated & Compact */}
-            {/* Bottom Nav (Mobile) - Animated & Compact */}
-            <motion.div 
-                initial={{ y: 100 }}
-                animate={{ y: 0 }}
-                className={`md:hidden fixed ${location.pathname.startsWith('/product/') ? 'bottom-24' : 'bottom-6'} left-4 right-4 h-14 bg-white/90 border border-gray-100/50 rounded-[24px] flex items-center justify-around z-[120] shadow-[0_8px_32px_rgba(0,0,0,0.08)] px-1 backdrop-blur-xl`}
-            >
-                {[
-                    { to: "/", icon: Home, label: "Home", match: (p) => p === '/' },
-                    { to: "/shop", icon: ShoppingBag, label: "Shop", match: (p, s) => p === '/shop' && !s.includes('tag=') },
-                    { to: "/shop?tag=gift", icon: Gift, label: "Gifts", match: (p, s) => s.includes('tag=gift') },
-                    { to: "/shop?tag=coin", icon: Coins, label: "Coins", match: (p, s) => s.includes('tag=coin') },
-                    { to: "/wishlist", icon: Heart, label: "Favs", match: (p) => p === '/wishlist' },
-                    { to: "/profile", icon: User, label: "Me", match: (p) => p === '/profile' }
-                ].map((item) => {
-                    const isActive = item.match(location.pathname, location.search);
-                    return (
-                        <Link 
-                            key={item.label}
-                            to={item.to} 
-                            onClick={() => toggleMenu(false)} 
-                            className="flex flex-col items-center justify-center flex-1 h-full relative"
-                        >
-                            <motion.div 
-                                whileTap={{ scale: 0.9 }}
-                                className={`flex flex-col items-center gap-0.5 transition-all duration-300 ${isActive ? 'scale-110' : 'opacity-70 hover:opacity-100'}`}
-                            >
-                                <item.icon 
-                                    className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-gray-500'}`} 
-                                    strokeWidth={isActive ? 2.5 : 2}
-                                />
-                                <span className={`text-[8px] font-bold tracking-tight transition-colors ${isActive ? 'text-primary' : 'text-gray-400'}`}>
-                                    {item.label}
-                                </span>
-                            </motion.div>
-                            
-                            {isActive && (
-                                <motion.div 
-                                    layoutId="bottomNavDot"
-                                    className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(var(--primary-rgb),0.6)]"
-                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                />
-                            )}
-                        </Link>
-                    );
-                })}
-            </motion.div>
         </>
     );
 };

@@ -28,6 +28,7 @@ const videoCallBookingSchema = new mongoose.Schema({
             'pending_admin',   // waiting for admin
             'pending_user',    // admin approved, waiting user confirm
             'confirmed',       // both approved — call ready
+            'redirected',      // admin handed the request to a seller who will contact the customer directly
             'rejected',
             'cancelled',
             'completed',
@@ -36,6 +37,11 @@ const videoCallBookingSchema = new mongoose.Schema({
     },
     callId: { type: String },
     adminNote: { type: String, default: '' },
+    /** Admin can hand a request to a seller contact (name + phone); the seller has no panel and calls the customer */
+    assignedSeller: { type: mongoose.Schema.Types.ObjectId, ref: 'Seller', default: null },
+    redirectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    redirectedAt: Date,
+    redirectNote: { type: String, default: '' },
     rejectedBy: { type: String, enum: ['admin', 'user', null], default: null },
     adminApprovedAt: Date,
     userConfirmedAt: Date,

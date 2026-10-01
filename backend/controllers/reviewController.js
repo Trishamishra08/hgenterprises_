@@ -3,6 +3,18 @@ const Order = require('../models/Order');
 const Pack = require('../models/Pack');
 const Product = require('../models/Product');
 
+const findDeliveredOrderForProduct = async (userId, productId) => {
+    const pid = String(productId);
+    return Order.findOne({
+        userId,
+        status: 'Delivered',
+        $or: [
+            { 'items.id': pid },
+            { 'items.id': productId },
+        ],
+    });
+};
+
 exports.addReview = async (req, res) => {
     try {
         const { productId, rating, comment, images } = req.body;
@@ -12,16 +24,17 @@ exports.addReview = async (req, res) => {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
+        // Only customers with a delivered order may review
+        const order = await findDeliveredOrderForProduct(userId, productId);
+        if (!order) {
+            return res.status(403).json({
+                message: 'You can review this product only after it has been delivered',
+            });
+        }
+
         // Check if user already reviewed this product
         const existingReview = await Review.findOne({ userId, productId });
         if (existingReview) return res.status(400).json({ message: 'You have already reviewed this product' });
-
-        // Check if it's a verified purchase
-        const order = await Order.findOne({
-            userId,
-            "items.id": productId,
-            status: 'Delivered'
-        });
 
         const review = await Review.create({
             userId,
@@ -29,7 +42,7 @@ exports.addReview = async (req, res) => {
             rating,
             comment,
             images,
-            isVerifiedPurchase: !!order,
+            isVerifiedPurchase: true,
             status: 'Pending', // Moderation required
             isVisible: false     // Hidden until approved
         });
@@ -38,6 +51,45 @@ exports.addReview = async (req, res) => {
     } catch (error) {
         console.error('[ADD REVIEW ERROR]', error);
         res.status(400).json({ message: 'Failed to add review', error: error.message });
+    }
+};
+
+/** Public feed for home #HGAndMe testimonials — approved reviews across all products */
+exports.getFeaturedReviews = async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit, 10) || 24, 48);
+        const reviews = await Review.find({
+            status: 'Approved',
+            isVisible: true,
+        })
+            .populate('userId', 'name userImage')
+            .populate('productId', 'name image category')
+            .sort({ createdAt: -1 })
+            .limit(limit);
+
+        // Enrich packs if product populate missed (rare)
+        const enriched = await Promise.all(reviews.map(async (r) => {
+            const obj = r.toObject();
+            if (!obj.productId || !obj.productId.name) {
+                const rawId = r.productId?._id || r.productId;
+                let item = await Product.findById(rawId).select('name image category');
+                if (!item) item = await Pack.findById(rawId).select('name image');
+                if (item) {
+                    obj.productId = {
+                        _id: item._id,
+                        name: item.name,
+                        image: item.image,
+                        category: item.category,
+                    };
+                }
+            }
+            return obj;
+        }));
+
+        res.status(200).json(enriched);
+    } catch (error) {
+        console.error('[GET FEATURED REVIEWS ERROR]', error);
+        res.status(500).json({ message: 'Failed to fetch testimonials', error: error.message });
     }
 };
 

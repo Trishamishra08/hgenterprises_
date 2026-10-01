@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ProductCard from '../components/ProductCard';
 import { useShop } from '../../../context/ShopContext';
 import {
@@ -87,6 +87,43 @@ const Shop = () => {
     const [custCarat, setCustCarat] = useState('0.15');
     const [custQuality, setCustQuality] = useState('SI IJ');
 
+    // Switching category/department (e.g. Jewellery → Tools) must not carry over the previous
+    // selection's filters, otherwise stale chips like "Diamond" or "Gold" stay on top of unrelated items.
+    const resetFilters = () => {
+        setSelectedSubCategory(null);
+        setSelectedType('All');
+        setSelectedMetal('All');
+        setSelectedGender('All');
+        setSelectedOffers('All');
+        setSelectedGoldPurity('All');
+        setSelectedStones('All');
+        setSelectedOccasion('All');
+        setSelectedNumOfStones('All');
+        setSelectedDesign('All');
+        setSelectedStoneColor('All');
+        setSelectedZodiac('All');
+        setSelectedStoneShape('All');
+        setSelectedCollections('All');
+        setSelectedTanmaniya('All');
+        setSelectedCharacteristics('All');
+        setSelectedMachineType('All');
+        setSelectedCondition('All');
+        setSelectedCountry('All');
+        setSelectedOperation('All');
+        setSelectedHorsepower('All');
+        setSelectedPhase('All');
+        setSelectedBrand('All');
+        setSelectedToolType('All');
+        setSelectedSubTool('All');
+        setSelectedToolBrand('All');
+        setPriceRange({ min: 0, max: 500000 });
+        setProductViewMode('all');
+        setAppliedStorePincode('');
+        setStorePincodeInput('');
+        setPincodeError('');
+    };
+    const prevCategoryKey = useRef(null);
+
     // Sync with URL params & Normalize Category
     useEffect(() => {
         const categoryQuery = searchParams.get('category') || pathCategory;
@@ -96,6 +133,17 @@ const Shop = () => {
         const metalQuery = searchParams.get('metal');
         const typeQuery = searchParams.get('type');
         const genderQuery = searchParams.get('gender');
+
+        const categoryKey = (categoryQuery || '').toLowerCase();
+        if (prevCategoryKey.current !== null && prevCategoryKey.current !== categoryKey) {
+            resetFilters();
+        }
+        prevCategoryKey.current = categoryKey;
+
+        if (!subcategoryQuery) {
+            setSelectedSubCategory(null);
+            if (!typeQuery) setSelectedType('All');
+        }
 
         if (categoryQuery) {
             const normalizedCat = decodeURIComponent(categoryQuery).toLowerCase();
@@ -659,12 +707,29 @@ const Shop = () => {
     }, [categories]);
 
     const handleCategoryToggle = (name) => {
+        resetFilters();
         setOpenCategory(name);
         setSelectedCategory(name);
-        setSelectedSubCategory(null);
-        setSelectedType('All');
-        setSelectedMetal('All');
+        // URL is the source of truth, so a stale ?subcategory= can't re-apply itself
+        navigate(`/shop?category=${encodeURIComponent(name)}`);
     };
+
+    // Product counts per category / subcategory (case-insensitive; products store category by id or name)
+    const productCounts = useMemo(() => {
+        const byCategory = {};
+        const bySub = {};
+        enhancedCategories.forEach((cat) => {
+            const names = [cat.name, cat.id].filter(Boolean).map((n) => String(n).toLowerCase());
+            const inCat = products.filter((p) => names.includes(String(p.category || '').toLowerCase()));
+            byCategory[cat.name] = inCat.length;
+            (cat.subcategories || []).forEach((sub) => {
+                bySub[`${cat.name}|${sub.name}`] = inCat.filter(
+                    (p) => String(p.subcategory || p.subCategory || '').toLowerCase() === String(sub.name).toLowerCase()
+                ).length;
+            });
+        });
+        return { byCategory, bySub };
+    }, [products, enhancedCategories]);
 
     const SidebarContent = () => {
         const currentCatData = enhancedCategories.find(c => c.name?.toLowerCase() === openCategory?.toLowerCase());
@@ -754,7 +819,8 @@ const Shop = () => {
                                         }}
                                         className={`w-full text-left px-2 py-1 rounded text-xs transition-all flex items-center justify-between ${openCategory?.toLowerCase() === cat.name?.toLowerCase() ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
                                     >
-                                        <span className="capitalize">{cat.name.toLowerCase()}</span>
+                                        <span className="capitalize flex-1">{cat.name.toLowerCase()}</span>
+                                        <span className="text-[10px] text-gray-400 mr-1">({productCounts.byCategory[cat.name] || 0})</span>
                                         <ChevronRight className={`w-3 h-3 transition-transform ${expandedCategory === cat.name ? 'rotate-90 text-blue-600' : 'text-gray-400'}`} />
                                     </button>
 
@@ -785,7 +851,7 @@ const Shop = () => {
                                                                     <ImageLucide className="w-3 h-3 text-gray-400" />
                                                                 )}
                                                             </div>
-                                                            <span className={`text-[7px] tracking-wider text-center leading-tight mt-0.5 ${selectedSubCategory === sub.name ? 'text-blue-600' : 'text-gray-600'}`}>{sub.name}</span>
+                                                            <span className={`text-[7px] tracking-wider text-center leading-tight mt-0.5 ${selectedSubCategory === sub.name ? 'text-blue-600' : 'text-gray-600'}`}>{sub.name} ({productCounts.bySub[`${cat.name}|${sub.name}`] || 0})</span>
                                                         </button>
                                                     ))}
                                                 </div>
@@ -924,6 +990,31 @@ const Shop = () => {
                     </button>
                 </div>
 
+                {/* Category quick-nav with availability counts (only categories of the current department) */}
+                {(() => {
+                    const deptCategories = enhancedCategories.filter(
+                        (cat) => resolveDepartmentFromCategory(cat.name, cat) === shopDepartment
+                    );
+                    if (deptCategories.length === 0) return null;
+                    return (
+                        <div className="flex gap-2 mb-2 px-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            {deptCategories.map((cat) => {
+                                const active = selectedCategory?.toLowerCase() === cat.name?.toLowerCase();
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        type="button"
+                                        onClick={() => handleCategoryToggle(cat.name)}
+                                        className={`shrink-0 px-3 py-1 rounded-full border text-[10px] uppercase tracking-wide transition-colors ${active ? 'bg-[#337ab7] text-white border-[#337ab7]' : 'bg-white text-gray-600 border-gray-200 hover:border-[#337ab7]/50'}`}
+                                    >
+                                        {cat.name} <span className={active ? 'text-white/80' : 'text-gray-400'}>({productCounts.byCategory[cat.name] || 0})</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    );
+                })()}
+
                 {/* Active sidebar filters */}
                 {activeFilters.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 mb-2 px-1">
@@ -943,39 +1034,7 @@ const Shop = () => {
                         ))}
                         <button
                             type="button"
-                            onClick={() => {
-                                setSelectedSubCategory(null);
-                                setSelectedType('All');
-                                setSelectedMetal('All');
-                                setSelectedGender('All');
-                                setSelectedOffers('All');
-                                setSelectedGoldPurity('All');
-                                setSelectedStones('All');
-                                setSelectedOccasion('All');
-                                setSelectedNumOfStones('All');
-                                setSelectedDesign('All');
-                                setSelectedStoneColor('All');
-                                setSelectedZodiac('All');
-                                setSelectedStoneShape('All');
-                                setSelectedCollections('All');
-                                setSelectedTanmaniya('All');
-                                setSelectedCharacteristics('All');
-                                setSelectedMachineType('All');
-                                setSelectedCondition('All');
-                                setSelectedCountry('All');
-                                setSelectedOperation('All');
-                                setSelectedHorsepower('All');
-                                setSelectedPhase('All');
-                                setSelectedBrand('All');
-                                setSelectedToolType('All');
-                                setSelectedSubTool('All');
-                                setSelectedToolBrand('All');
-                                setPriceRange({ min: 0, max: 500000 });
-                                setProductViewMode('all');
-                                setAppliedStorePincode('');
-                                setStorePincodeInput('');
-                                setPincodeError('');
-                            }}
+                            onClick={resetFilters}
                             className="text-[9px] font-bold uppercase tracking-wider text-gray-400 hover:text-[#337ab7] underline"
                         >
                             Clear all

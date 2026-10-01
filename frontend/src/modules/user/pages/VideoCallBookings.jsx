@@ -15,6 +15,7 @@ const statusStyle = {
     pending_admin: 'bg-amber-50 text-amber-700 border-amber-100',
     pending_user: 'bg-blue-50 text-blue-700 border-blue-100',
     confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    redirected: 'bg-violet-50 text-violet-700 border-violet-100',
     rejected: 'bg-red-50 text-red-700 border-red-100',
     cancelled: 'bg-gray-50 text-gray-500 border-gray-100',
     completed: 'bg-gray-50 text-gray-600 border-gray-100',
@@ -107,9 +108,12 @@ export default function VideoCallBookings() {
                                 <div>
                                     <p className="text-sm font-semibold text-[#3E2723]">{whenLabel(b)}</p>
                                     <p className="text-xs text-gray-500 mt-1">{b.products?.length || 0} design(s)</p>
+                                    {b.status === 'redirected' && b.assignedSeller?.name && (
+                                        <p className="text-xs text-violet-700 mt-1">{b.assignedSeller.name} from our team will contact you on your registered phone number.</p>
+                                    )}
                                 </div>
                                 <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full border ${statusStyle[b.status] || ''}`}>
-                                    {b.status.replace('_', ' ')}
+                                    {b.status === 'redirected' ? 'specialist assigned' : b.status.replace('_', ' ')}
                                 </span>
                             </div>
 

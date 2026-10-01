@@ -47,7 +47,8 @@ app.use(cors({
     },
     credentials: true
 }));
-app.use(express.json());
+// Keep the raw body: the Razorpay webhook signature is computed over the exact bytes received
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -81,6 +82,10 @@ const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
 const offerRoutes = require('./routes/offerRoutes');
 const videoCallRoutes = require('./routes/videoCallRoutes');
+const attributeRoutes = require('./routes/attributeRoutes');
+const policyRoutes = require('./routes/policyRoutes');
+const guidelineRoutes = require('./routes/guidelineRoutes');
+const videoRoutes = require('./routes/videoRoutes');
 
 // Use Routes
 app.use('/api/products', productRoutes);
@@ -103,6 +108,10 @@ app.use('/api/inventory-reports', inventoryReportRoutes);
 app.use('/api/suggestions', suggestionRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/video-calls', videoCallRoutes);
+app.use('/api/attributes', attributeRoutes);
+app.use('/api/policies', policyRoutes);
+app.use('/api/guidelines', guidelineRoutes);
+app.use('/api/videos', videoRoutes);
 
 
 

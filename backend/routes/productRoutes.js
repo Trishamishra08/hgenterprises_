@@ -12,6 +12,7 @@ router.get('/', productController.getAllProducts);
 router.get('/packs', productController.getAllPacks);
 
 // Reviews (specific paths before /:id wildcard)
+router.get('/reviews/featured', reviewController.getFeaturedReviews);
 router.get('/reviews/my', authMiddleware, reviewController.getMyReviews);
 router.post('/reviews', authMiddleware, reviewController.addReview);
 router.delete('/reviews/:id', authMiddleware, reviewController.deleteReview);

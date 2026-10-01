@@ -16,7 +16,7 @@ const WhatsAppButton = () => {
     const whatsappUrl = `https://wa.me/${cleanedPhone}?text=${message}`;
 
     return (
-        <div className="fixed bottom-[110px] md:bottom-6 right-4 md:right-6 z-[9999] flex items-center justify-center">
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[9999] flex items-center justify-center">
             {/* Pulsing Sonar Wave Radiating Outwards */}
             <motion.div
                 className="absolute w-[66px] h-[66px] md:w-[72px] md:h-[72px] rounded-full bg-emerald-500/10 pointer-events-none"

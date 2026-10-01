@@ -31,6 +31,10 @@ import SmoothScroll from './components/SmoothScroll';
 import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import WhatsAppButton from './modules/user/components/WhatsAppButton';
+import WelcomePopup from './modules/user/components/WelcomePopup';
+import PolicyPage from './modules/user/pages/PolicyPage';
+import GuidelinePage from './modules/user/pages/GuidelinePage';
+import ResourceCentre from './modules/user/pages/ResourceCentre';
 
 
 
@@ -76,6 +80,9 @@ import SectionManagement from './modules/admin/pages/SectionManagement';
 import SectionEditor from './modules/admin/pages/SectionEditor';
 import DynamicPageEditor from './modules/admin/pages/DynamicPageEditor';
 import PlatformSettingsPage from './modules/admin/pages/PlatformSettingsPage';
+import AttributeManagement from './modules/admin/pages/AttributeManagement';
+import SocialMediaManager from './modules/admin/pages/SocialMediaManager';
+import ContentLibraryManager from './modules/admin/pages/ContentLibraryManager';
 
 import SuggestionList from './modules/admin/pages/SuggestionList';
 import SubscriptionList from './modules/admin/pages/SubscriptionList';
@@ -122,9 +129,10 @@ const AppContent = () => {
               <Navbar />
             </div>
             <WhatsAppButton />
+            <WelcomePopup />
           </>
         )}
-        <main className={`flex-grow ${!hideChrome ? 'pb-16 md:pb-0' : ''}`}>
+        <main className={`flex-grow ${!hideChrome ? 'pb-0' : ''}`}>
           <Routes>
             {/* User Routes */}
             <Route path="/" element={<Home />} />
@@ -153,6 +161,9 @@ const AppContent = () => {
             <Route path="/services/:category/:slug" element={<ServicesPage />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/craft" element={<CraftsmanshipPage />} />
+            <Route path="/resources" element={<ResourceCentre />} />
+            <Route path="/policies/:slug" element={<PolicyPage />} />
+            <Route path="/guidelines/:department/:slug?" element={<GuidelinePage />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/new-arrivals" element={<Shop />} />
@@ -221,6 +232,12 @@ const AppContent = () => {
                     <Route path="/pages/:pageId" element={<DynamicPageEditor />} />
                     <Route path="/settings" element={<GlobalSettings />} />
                     <Route path="/platform-settings" element={<PlatformSettingsPage />} />
+                    <Route path="/attributes" element={<AttributeManagement />} />
+                    <Route path="/social" element={<SocialMediaManager />} />
+                    <Route path="/policies" element={<ContentLibraryManager mode="policy" />} />
+                    <Route path="/guidelines" element={<ContentLibraryManager mode="guideline" />} />
+                    <Route path="/videos" element={<ContentLibraryManager mode="video" />} />
+                    <Route path="/resources" element={<ContentLibraryManager mode="guideline" />} />
 
                   </Routes>
                 </AdminLayout>

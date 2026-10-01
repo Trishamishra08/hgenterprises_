@@ -2,7 +2,7 @@ const Suggestion = require('../models/Suggestion');
 
 exports.addSuggestion = async (req, res) => {
     try {
-        const { name, email, message, userId } = req.body;
+        const { name, email, message, userId, phone, source } = req.body;
 
         if (!name || !email || !message) {
             return res.status(400).json({ message: 'All fields are required' });
@@ -12,6 +12,8 @@ exports.addSuggestion = async (req, res) => {
             name,
             email,
             message,
+            phone: phone || '',
+            source: source === 'welcome-popup' ? 'welcome-popup' : 'suggestion',
             userId: userId || null
         });
 

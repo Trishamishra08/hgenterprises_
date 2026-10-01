@@ -43,7 +43,7 @@ const RecentlyViewedDropdown = () => {
                 onClick={handleClick}
                 aria-label="Recently viewed products"
                 aria-expanded={open}
-                className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 group transition-colors"
+                className="w-7 h-7 md:w-10 md:h-10 flex items-center justify-center rounded-full hover:bg-white/10 group transition-colors"
             >
                 <Eye className="w-4.5 h-4.5 md:w-5 md:h-5 text-white/90 group-hover:text-[#EBCDD0] transition-colors" strokeWidth={1.75} />
             </button>

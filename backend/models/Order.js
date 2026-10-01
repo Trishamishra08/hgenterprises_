@@ -10,7 +10,8 @@ const orderItemSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     quantity: { type: Number, required: true },
     variant: { type: String },
-    unit: { type: String }
+    unit: { type: String },
+    options: { type: Object } // { selectedSize, selectedAttributes } chosen on the product page
 });
 
 const orderSchema = new mongoose.Schema({
@@ -27,6 +28,9 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: { type: String },
     paymentStatus: { type: String, enum: ['Pending', 'Completed', 'Failed'], default: 'Pending' },
     address: { type: Object, required: true },
+    razorpayOrderId: { type: String, index: true },
+    razorpayPaymentId: { type: String },
+    stockDeducted: { type: Boolean, default: false },
     trackingId: { type: String },
     estimatedDelivery: { type: Date }
 }, { timestamps: true });

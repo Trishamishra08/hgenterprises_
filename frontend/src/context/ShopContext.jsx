@@ -279,12 +279,22 @@ export const ShopProvider = ({ children }) => {
 
     const getActiveCoupons = () => coupons.filter(c => c.active);
 
+    // Online payment: the order was already created on the server (unpaid). Once payment is verified,
+    // reflect it locally and empty the cart.
+    const registerPaidOrder = (order) => {
+        if (order) setOrders(prev => [order, ...prev.filter(o => o._id !== order._id)]);
+        setCart([]);
+        showNotification("Payment successful! Order placed.");
+    };
+
     const placeOrder = async (orderDetails) => {
         try {
+            // Only items, address, payment method and coupon are sent; the server prices the order itself
             const res = await api.post('/orders/place', {
                 items: orderDetails.items || cart,
-                total: orderDetails.amount || (orderDetails.items || cart).reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0),
-                ...orderDetails
+                shippingAddress: orderDetails.shippingAddress,
+                paymentMethod: orderDetails.paymentMethod,
+                couponCode: orderDetails.couponCode
             });
             const newOrder = res.data.order;
             setOrders(prev => [newOrder, ...prev]);
@@ -293,7 +303,7 @@ export const ShopProvider = ({ children }) => {
             return newOrder.orderId;
         } catch (error) {
             console.error("Error placing order:", error);
-            showNotification("Failed to place order.");
+            showNotification(error.response?.data?.message || "Failed to place order.");
             return null;
         }
     };
@@ -557,7 +567,7 @@ export const ShopProvider = ({ children }) => {
             settings, setSettings,
             addToCart, removeFromCart, updateQuantity, clearCart,
             addToWishlist, removeFromWishlist,
-            placeOrder, addAddress, removeAddress, setDefaultAddress, defaultAddressId,
+            placeOrder, registerPaidOrder, addAddress, removeAddress, setDefaultAddress, defaultAddressId,
             createTicket, toggleMenu, toggleSearch, getActiveCoupons, showNotification,
             homepageSections, updateSection, toggleUserStatus, updateCategory, deleteCategory,
             createCoupon, updateCoupon, deleteCoupon, deleteProduct, toggleProductStatus,
