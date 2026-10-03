@@ -1,6 +1,9 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const Otp = require('../models/Otp');
+const sms = require('../utils/sms');
 
 // User Registration
 exports.signup = async (req, res) => {
@@ -94,26 +97,58 @@ exports.addAddress = async (req, res) => {
         res.status(500).json({ message: 'Failed to add address', error: error.message });
     }
 };
-// --- OTP AUTH (Simplified/Testing) ---
+// --- OTP AUTH (SMS via DLT gateway, see utils/sms.js) ---
 
-// 1. Send OTP (Mock)
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+const hashOtp = (phone, otp) =>
+    crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${phone}:${otp}`).digest('hex');
+
+// 1. Send OTP
 exports.sendOTP = async (req, res) => {
     try {
-        const phone = String(req.body?.phone || '').replace(/\D/g, '').slice(-10);
-        if (!phone || phone.length !== 10) {
-            return res.status(400).json({ message: 'Invalid phone number' });
+        const phone = String(req.body?.phone || '').replace(/D/g, '').slice(-10);
+        if (!/^[6-9]d{9}$/.test(phone)) {
+            return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number' });
         }
+
+        const smsReady = sms.isConfigured();
+        if (!smsReady && process.env.NODE_ENV === 'production') {
+            console.error('[AUTH] SMS gateway is not configured (SMS_API_KEY / SMS_SENDER_ID / SMS_DLT_TEMPLATE_ID)');
+            return res.status(503).json({ message: 'OTP service is temporarily unavailable. Please try again later.' });
+        }
+
+        const existing = await Otp.findOne({ phone });
+        if (existing && Date.now() - existing.lastSentAt.getTime() < OTP_RESEND_COOLDOWN_MS) {
+            const wait = Math.ceil((OTP_RESEND_COOLDOWN_MS - (Date.now() - existing.lastSentAt.getTime())) / 1000);
+            return res.status(429).json({ message: `Please wait ${wait}s before requesting another OTP` });
+        }
+
+        const otp = String(crypto.randomInt(100000, 1000000));
+        await Otp.findOneAndUpdate(
+            { phone },
+            { codeHash: hashOtp(phone, otp), attempts: 0, lastSentAt: new Date(), expiresAt: new Date(Date.now() + OTP_TTL_MS) },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
 
         const user = await User.findOne({ phone });
 
-        console.log(`[AUTH] Mock OTP sent to +91 ${phone}: 123456`);
-        return res.status(200).json({
-            success: true,
-            message: 'OTP sent successfully (Testing Mode)',
-            exists: !!user,
-            // Testing helper — frontend already uses master OTP 123456
-            otpHint: '123456'
-        });
+        if (smsReady) {
+            try {
+                await sms.sendOtpSms(phone, otp);
+            } catch (err) {
+                await Otp.deleteOne({ phone });
+                console.error('[AUTH] SMS send failed:', err.message);
+                return res.status(502).json({ message: 'Could not send the OTP SMS. Please try again.' });
+            }
+            return res.status(200).json({ success: true, message: 'OTP sent successfully', exists: !!user });
+        }
+
+        // Local development only: no gateway configured, so show the code in the server log
+        console.log(`[AUTH][DEV] SMS not configured. OTP for +91 ${phone}: ${otp}`);
+        return res.status(200).json({ success: true, message: 'OTP generated (dev mode, see server log)', exists: !!user });
     } catch (error) {
         console.error('[AUTH] sendOTP error:', error);
         return res.status(500).json({ message: 'Failed to send OTP', error: error.message });
@@ -123,12 +158,26 @@ exports.sendOTP = async (req, res) => {
 // 2. Verify OTP & Login/Signup
 exports.verifyOTP = async (req, res) => {
     try {
-        const { phone, otp, name, email, gender } = req.body;
+        const { otp, name, email, gender } = req.body;
+        const phone = String(req.body?.phone || '').replace(/D/g, '').slice(-10);
 
-        // Master OTP bypass as requested
-        if (otp !== '123456') {
+        const record = await Otp.findOne({ phone });
+        if (!record || record.expiresAt < new Date()) {
+            return res.status(400).json({ message: 'OTP expired. Please request a new one.' });
+        }
+        if (record.attempts >= OTP_MAX_ATTEMPTS) {
+            await Otp.deleteOne({ phone });
+            return res.status(429).json({ message: 'Too many wrong attempts. Please request a new OTP.' });
+        }
+
+        const given = Buffer.from(hashOtp(phone, String(otp || '')));
+        const stored = Buffer.from(record.codeHash);
+        if (given.length !== stored.length || !crypto.timingSafeEqual(given, stored)) {
+            record.attempts += 1;
+            await record.save();
             return res.status(400).json({ message: 'Invalid OTP code' });
         }
+        await Otp.deleteOne({ phone }); // single use
 
         // Find User
         let user = await User.findOne({ phone });
