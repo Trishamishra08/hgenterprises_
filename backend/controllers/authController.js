@@ -109,8 +109,8 @@ const hashOtp = (phone, otp) =>
 // 1. Send OTP
 exports.sendOTP = async (req, res) => {
     try {
-        const phone = String(req.body?.phone || '').replace(/D/g, '').slice(-10);
-        if (!/^[6-9]d{9}$/.test(phone)) {
+        const phone = String(req.body?.phone || '').replace(/\D/g, '').slice(-10);
+        if (!/^[6-9]\d{9}$/.test(phone)) {
             return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number' });
         }
 
@@ -159,7 +159,7 @@ exports.sendOTP = async (req, res) => {
 exports.verifyOTP = async (req, res) => {
     try {
         const { otp, name, email, gender } = req.body;
-        const phone = String(req.body?.phone || '').replace(/D/g, '').slice(-10);
+        const phone = String(req.body?.phone || '').replace(/\D/g, '').slice(-10);
 
         const record = await Otp.findOne({ phone });
         if (!record || record.expiresAt < new Date()) {
