@@ -12,6 +12,23 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
+// FRONTEND_URL may hold several comma-separated origins; the www / non-www twin of each is allowed too
+// (visitors reach the site through both hgenterprises.in and www.hgenterprises.in)
+function frontendOrigins() {
+    const out = new Set();
+    (process.env.FRONTEND_URL || '').split(',').map((u) => u.trim().replace(/\/+$/, '')).filter(Boolean).forEach((u) => {
+        out.add(u);
+        try {
+            const url = new URL(u);
+            if (url.hostname !== 'localhost') {
+                url.hostname = url.hostname.startsWith('www.') ? url.hostname.slice(4) : 'www.' + url.hostname;
+                out.add(url.origin);
+            }
+        } catch (_) { /* ignore malformed entry */ }
+    });
+    return [...out];
+}
+
 // Middleware
 const allowedOrigins = [
     'https://hgenterprises.vercel.app',
@@ -22,7 +39,7 @@ const allowedOrigins = [
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:5173',
-    process.env.FRONTEND_URL
+    ...frontendOrigins()
 ].filter(Boolean);
 
 const isAllowedOrigin = (origin) => {

@@ -141,7 +141,7 @@ exports.sendOTP = async (req, res) => {
             } catch (err) {
                 await Otp.deleteOne({ phone });
                 console.error('[AUTH] SMS send failed:', err.message);
-                return res.status(502).json({ message: 'Could not send the OTP SMS. Please try again.' });
+                return res.status(500).json({ message: 'Could not send the OTP SMS. Please try again.' });
             }
             return res.status(200).json({ success: true, message: 'OTP sent successfully', exists: !!user });
         }
