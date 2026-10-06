@@ -12,9 +12,24 @@ const DEFAULT_URL =
 const isConfigured = () => Boolean(process.env.SMS_API_KEY && process.env.SMS_SENDER_ID && process.env.SMS_DLT_TEMPLATE_ID);
 
 // The text must match the DLT-registered template exactly, or operators drop the message.
-const buildOtpMessage = (otp) =>
-    (process.env.SMS_OTP_TEMPLATE || 'Welcome to the HgEnterprises powered by Appzeto.Your OTP for registration is ##var##.BGADEC')
-        .replace('##var##', otp);
+const DEFAULT_OTP_TEMPLATE = 'Welcome to the HgEnterprises powered by Appzeto.Your OTP for registration is ##var##.BGADEC';
+
+const buildOtpMessage = (otp) => {
+    // In a .env file "#" starts a comment, which silently chops "##var##.BGADEC" off the template.
+    // Only trust the env value if it still contains the placeholder; otherwise use the registered text.
+    const fromEnv = process.env.SMS_OTP_TEMPLATE;
+    const template = fromEnv && fromEnv.includes('##var##') ? fromEnv : DEFAULT_OTP_TEMPLATE;
+    return template.replace('##var##', otp);
+};
+
+// SMSIndiaHub replies {"ErrorCode":"000","ErrorMessage":"Done",...} on success. Anything else is a failure.
+const isGatewaySuccess = (body) => {
+    try {
+        const json = JSON.parse(body);
+        if (json && typeof json === 'object' && 'ErrorCode' in json) return String(json.ErrorCode) === '000';
+    } catch (_) { /* not JSON, fall through */ }
+    return !/\b(fail|failed|invalid|insufficient|denied|rejected)\b/i.test(body);
+};
 
 async function sendSms(phone10, message) {
     const values = {
@@ -28,9 +43,9 @@ async function sendSms(phone10, message) {
     const url = (process.env.SMS_API_URL || DEFAULT_URL).replace(/\{(\w+)\}/g, (_, k) => encodeURIComponent(values[k] ?? ''));
 
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    const body = (await res.text()).slice(0, 300);
-    // Gateways often answer 200 with an error in the body; treat explicit failure words as failure
-    if (!res.ok || /\b(error|invalid|fail|insufficient|denied)/i.test(body)) {
+    const body = (await res.text()).slice(0, 600);
+    // Gateways often answer HTTP 200 even when they refuse the message, so the body decides
+    if (!res.ok || !isGatewaySuccess(body)) {
         throw new Error(`SMS gateway rejected the request: ${body}`);
     }
     return body;
