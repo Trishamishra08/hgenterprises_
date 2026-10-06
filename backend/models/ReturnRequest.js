@@ -22,7 +22,18 @@ const returnRequestSchema = new mongoose.Schema({
         default: 'Pending'
     },
     adminComment: { type: String },
-    refundAmount: { type: Number },
+    refundAmount: { type: Number },          // maximum refundable amount, computed by the server from the order
+    refundedAmount: { type: Number, default: 0 },
+    refundId: { type: String },              // Razorpay refund id (online orders)
+    refundReference: { type: String },       // bank UTR / reference (COD orders, paid manually)
+    qcNote: { type: String },
+    restocked: { type: Boolean, default: false },
+    replacementStockTaken: { type: Boolean, default: false },
+    replacement: {
+        courierName: String,
+        trackingId: String,
+        shippedAt: Date
+    },
     bankDetails: {
         holderName: String,
         accountNumber: String,
@@ -36,6 +47,7 @@ const returnRequestSchema = new mongoose.Schema({
     },
     timeline: [{
         status: String,
+        note: String,
         date: { type: Date, default: Date.now }
     }]
 }, { timestamps: true });

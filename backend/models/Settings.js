@@ -21,6 +21,8 @@ const settingsSchema = new mongoose.Schema({
     codPolicy: { type: String, default: 'Cash On Delivery' },
     gstPercentage: { type: Number, default: 18 },
     shippingCharge: { type: Number, default: 50 },
+    returnWindowDays: { type: Number, default: 7 },     // days after delivery a return can be requested
+    exchangeWindowDays: { type: Number, default: 10 },  // days after delivery an exchange can be requested
     codMaxAmount: { type: Number, default: 50000 }, // Cash on Delivery is refused above this order total
 
     // Value Propositions

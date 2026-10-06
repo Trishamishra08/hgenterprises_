@@ -153,16 +153,51 @@ async function restoreStock(orderId, reason) {
     return order;
 }
 
+/**
+ * Add (direction +1) or take (direction -1) stock for a list of { id, quantity } lines.
+ * Taking stock first checks every line so a request never half-applies.
+ */
+async function adjustItemsStock(items, direction, reason) {
+    if (direction < 0) {
+        for (const item of items) {
+            const product = await Product.findById(item.id);
+            if (!product) throw new OrderError(`Product "${item.name || item.id}" no longer exists`);
+            if ((product.variants?.[0]?.stock ?? 0) < item.quantity) {
+                throw new OrderError(`Not enough stock of "${product.name}" (have ${product.variants?.[0]?.stock ?? 0}, need ${item.quantity})`);
+            }
+        }
+    }
+    for (const item of items) {
+        const product = await Product.findById(item.id);
+        if (!product) continue;
+        const oldStock = product.variants?.[0]?.stock || 0;
+        const change = direction * item.quantity;
+        await Product.findByIdAndUpdate(item.id, { $inc: { 'variants.0.stock': change } });
+        await InventoryLog.create({ productId: item.id, change, oldStock, newStock: oldStock + change, reason });
+    }
+}
+
+/** Refund part or all of an online payment through Razorpay. Returns the Razorpay refund id. */
+async function refundOnline(paymentId, amountRupees, notes = {}) {
+    const Razorpay = require('razorpay');
+    const rzp = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+    const refund = await rzp.payments.refund(paymentId, { amount: Math.round(amountRupees * 100), speed: 'normal', notes });
+    return refund.id;
+}
+
 /** Mark an online order paid (called by verify + webhook). Safe to call twice. */
 async function markPaid(order, paymentId) {
     if (order.paymentStatus !== 'Completed') {
         order.paymentStatus = 'Completed';
         order.razorpayPaymentId = paymentId || order.razorpayPaymentId;
-        if (order.status === 'Pending') order.status = 'Processing';
+        if (order.status === 'Pending') {
+            order.status = 'Processing';
+            order.statusHistory.push({ status: 'Processing', note: 'Online payment received' });
+        }
         await order.save();
     }
     await deductStock(order._id);
     return Order.findById(order._id);
 }
 
-module.exports = { OrderError, priceOrder, deductStock, restoreStock, markPaid };
+module.exports = { OrderError, priceOrder, deductStock, restoreStock, markPaid, adjustItemsStock, refundOnline };

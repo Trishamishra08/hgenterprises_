@@ -26,12 +26,23 @@ const orderSchema = new mongoose.Schema({
     total: { type: Number, required: true },
     status: { type: String, enum: ['Pending', 'Received', 'Processing', 'Shipped', 'Out For Delivery', 'Delivered', 'Cancelled'], default: 'Processing' },
     paymentMethod: { type: String },
-    paymentStatus: { type: String, enum: ['Pending', 'Completed', 'Failed'], default: 'Pending' },
+    paymentStatus: { type: String, enum: ['Pending', 'Completed', 'Failed', 'Refunded', 'Partially Refunded'], default: 'Pending' },
     address: { type: Object, required: true },
     razorpayOrderId: { type: String, index: true },
     razorpayPaymentId: { type: String },
     stockDeducted: { type: Boolean, default: false },
+    // Manual shipment: admin books the courier outside the system and records the details here
+    courierName: { type: String },
     trackingId: { type: String },
+    trackingUrl: { type: String },
+    shippedAt: { type: Date },
+    deliveredAt: { type: Date },
+    cancelReason: { type: String },
+    statusHistory: [{
+        status: { type: String },
+        at: { type: Date, default: Date.now },
+        note: { type: String }
+    }],
     estimatedDelivery: { type: Date }
 }, { timestamps: true });
 

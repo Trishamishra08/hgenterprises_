@@ -9,6 +9,8 @@ const PlatformSettingsPage = () => {
     const [gstPercentage, setGstPercentage] = useState(18);
     const [shippingCharge, setShippingCharge] = useState(50);
     const [codMaxAmount, setCodMaxAmount] = useState(50000);
+    const [returnWindowDays, setReturnWindowDays] = useState(7);
+    const [exchangeWindowDays, setExchangeWindowDays] = useState(10);
     const [saving, setSaving] = useState(false);
     const [savingPdf, setSavingPdf] = useState(false);
     const [pdfExpanded, setPdfExpanded] = useState(true);
@@ -31,6 +33,8 @@ const PlatformSettingsPage = () => {
             setGstPercentage(settings.gstPercentage || 18);
             setShippingCharge(settings.shippingCharge || 50);
             setCodMaxAmount(settings.codMaxAmount ?? 50000);
+            setReturnWindowDays(settings.returnWindowDays ?? 7);
+            setExchangeWindowDays(settings.exchangeWindowDays ?? 10);
             if (settings.pdfBrochure) {
                 setPdfBrochure(prev => ({ ...prev, ...settings.pdfBrochure }));
             }
@@ -43,7 +47,9 @@ const PlatformSettingsPage = () => {
             await api.post('/settings', {
                 gstPercentage: Number(gstPercentage),
                 shippingCharge: Number(shippingCharge),
-                codMaxAmount: Number(codMaxAmount)
+                codMaxAmount: Number(codMaxAmount),
+                returnWindowDays: Number(returnWindowDays),
+                exchangeWindowDays: Number(exchangeWindowDays)
             });
             toast.success("Platform configurations updated successfully");
         } catch (error) {
@@ -180,6 +186,17 @@ const PlatformSettingsPage = () => {
                             />
                             <p className="text-[11px] text-gray-400 ml-1">Orders above this amount must be paid online.</p>
                         </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Return window (days)</label>
+                                <input type="number" min="0" value={returnWindowDays} onChange={e => setReturnWindowDays(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-lg font-bold text-black outline-none" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Exchange window (days)</label>
+                                <input type="number" min="0" value={exchangeWindowDays} onChange={e => setExchangeWindowDays(e.target.value)} className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 text-lg font-bold text-black outline-none" />
+                            </div>
+                        </div>
+                        <p className="text-[11px] text-gray-400 ml-1">Counted from the delivery date. Customers cannot request after this.</p>
                         <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 flex gap-3">
                             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                             <p className="text-[11px] text-emerald-700 leading-relaxed font-medium">

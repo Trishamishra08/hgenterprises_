@@ -50,6 +50,7 @@ exports.paymentFailed = async (req, res) => {
         if (order.paymentStatus !== 'Completed') {
             order.paymentStatus = 'Failed';
             order.status = 'Cancelled';
+            order.statusHistory.push({ status: 'Cancelled', note: 'Online payment was not completed' });
             await order.save();
             await restoreStock(order._id, `Payment failed #${order.orderId}`);
         }

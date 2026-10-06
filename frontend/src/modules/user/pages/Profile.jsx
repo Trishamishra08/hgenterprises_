@@ -111,7 +111,7 @@ const ReturnActionModal = ({ isOpen, onClose, type, order, onSuccess, userReview
             const requestData = {
                 orderId: order.orderId || order.id,
                 type,
-                items: order.items.filter(i => selectedItems.includes(i.id)),
+                items: order.items.filter(i => selectedItems.includes(i.id)).map(i => ({ id: i.id, quantity: i.quantity })),
                 reason,
                 comment,
                 images,
@@ -124,7 +124,7 @@ const ReturnActionModal = ({ isOpen, onClose, type, order, onSuccess, userReview
             onClose();
         } catch (error) {
             console.error('[SUBMIT ERROR]', error);
-            showNotification("Failed to submit request. Please try again.");
+            showNotification(error.response?.data?.message || "Failed to submit request. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -321,7 +321,7 @@ const ReturnActionModal = ({ isOpen, onClose, type, order, onSuccess, userReview
 };
 
 const OrderCard = ({ order, isExpanded, onToggle, returnRequest: initialReturnRequest, userReviews = [], userReturns = [] }) => {
-    const { showNotification } = useShop();
+    const { showNotification, settings } = useShop();
     const navigate = useNavigate();
     const [localShow, setLocalShow] = useState(false);
     const [isActionModalOpen, setActionModalOpen] = useState(false);
@@ -348,22 +348,19 @@ const OrderCard = ({ order, isExpanded, onToggle, returnRequest: initialReturnRe
     const isOrderReturnable = () => {
         if (order.status !== 'Delivered') return false;
 
-        // Delivery window check (7 days)
-        if (order.deliveredDate) {
-            const deliveryDate = new Date(order.deliveredDate);
-            const now = new Date();
-            const diffDays = Math.ceil((now - deliveryDate) / (1000 * 60 * 60 * 24));
-            if (diffDays > 7) return false;
-        }
+        // Window is set by the admin (Platform Config); the server enforces it again on submit
+        const windowDays = Math.max(settings?.returnWindowDays ?? 7, settings?.exchangeWindowDays ?? 10);
+        const deliveredAt = order.deliveredAt || order.updatedAt;
+        if (deliveredAt && Date.now() - new Date(deliveredAt).getTime() > windowDays * 24 * 60 * 60 * 1000) return false;
 
-        const orderReturns = userReturns.filter(r => r.orderId === (order.orderId || order.id) && r.status !== 'Rejected');
-        const returnedPackIds = new Set();
-        orderReturns.forEach(ret => {
-            ret.items.forEach(item => returnedPackIds.add(item.packId));
-        });
+        // Quantity of each item that already has a (non-rejected) request
+        const usedQty = {};
+        userReturns
+            .filter(r => r.orderId === (order.orderId || order.id) && r.status !== 'Rejected')
+            .forEach(ret => ret.items.forEach(i => { usedQty[i.id] = (usedQty[i.id] || 0) + (i.quantity || 1); }));
 
         const activeItems = order.items.filter(item =>
-            !returnedPackIds.has(item.packId) &&
+            (item.quantity - (usedQty[item.id] || 0)) > 0 &&
             !isItemReviewed(item)
         );
 

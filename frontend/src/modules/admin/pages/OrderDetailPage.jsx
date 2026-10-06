@@ -52,10 +52,12 @@ const OrderDetailPage = () => {
         }
     }, [id, orders]);
 
-    const updateStatus = async (newStatus) => {
+    const [shipForm, setShipForm] = useState({ courierName: '', trackingId: '', trackingUrl: '', estimatedDelivery: '' });
+
+    const updateStatus = async (newStatus, extra = {}) => {
         try {
             setActionLoading(true);
-            await api.patch(`/orders/${order._id || id}/status`, { status: newStatus });
+            await api.patch(`/orders/${order._id || id}/status`, { status: newStatus, ...extra });
             toast.success(`Order status updated to ${newStatus}`);
             await refreshOrders();
         } catch (error) {
@@ -95,11 +97,9 @@ const OrderDetailPage = () => {
         };
     };
 
-    const handleApprove = () => updateStatus('Processing');
-
-    const confirmReject = () => {
+    const confirmCancel = async () => {
         if (!rejectionReason.trim()) return;
-        updateStatus('Cancelled'); // Using Cancelled as the backend rejection status
+        await updateStatus('Cancelled', { note: rejectionReason.trim() });
         setShowRejectInput(false);
         setRejectionReason('');
     };
@@ -125,21 +125,20 @@ const OrderDetailPage = () => {
     };
 
     const getTimeline = () => {
-        const steps = [
-            { status: 'Order Placed', completed: true, date: new Date(order.createdAt).toLocaleDateString() },
-            { status: 'Payment Confirmed', completed: order.paymentStatus === 'Paid' || order.paymentMethod === 'COD', date: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A' },
-        ];
-
-        const currentStatus = order.status || 'Pending';
-
-        if (currentStatus === 'Cancelled') {
-            steps.push({ status: 'Order Cancelled', completed: true, date: 'Today', isError: true });
-        } else if (currentStatus === 'Pending') {
-            steps.push({ status: 'Admin Approval', completed: false, date: 'Awaiting' });
+        const fmt = (d) => (d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+        const history = order.statusHistory || [];
+        const steps = [{ status: 'Order Placed', completed: true, date: fmt(order.createdAt) }];
+        const paid = order.paymentMethod === 'cod' || ['Completed', 'Refunded', 'Partially Refunded'].includes(order.paymentStatus);
+        steps.push({ status: order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Payment Received', completed: paid, date: paid ? '' : 'Awaiting payment' });
+        const at = (st) => fmt(history.find((h) => h.status === st)?.at);
+        if (order.status === 'Cancelled') {
+            steps.push({ status: 'Order Cancelled', completed: true, date: at('Cancelled'), isError: true });
         } else {
-            steps.push({ status: 'Processing', completed: true, date: 'Locked' });
-            steps.push({ status: 'Shipped', completed: ['Shipped', 'Delivered'].includes(currentStatus), date: 'Pending' });
-            steps.push({ status: 'Delivered', completed: currentStatus === 'Delivered', date: 'Pending' });
+            const idx = ['Pending', 'Received', 'Processing', 'Shipped', 'Out For Delivery', 'Delivered'].indexOf(order.status);
+            steps.push({ status: 'Processing', completed: idx >= 2, date: at('Processing') });
+            steps.push({ status: 'Shipped', completed: idx >= 3, date: at('Shipped') });
+            steps.push({ status: 'Out For Delivery', completed: idx >= 4, date: at('Out For Delivery') });
+            steps.push({ status: 'Delivered', completed: idx >= 5, date: at('Delivered') });
         }
         return steps;
     };
@@ -299,98 +298,80 @@ const OrderDetailPage = () => {
                             <h3 className="text-[10px] font-black text-black uppercase tracking-widest">Update order State</h3>
                         </div>
 
-                        {order.status === 'Pending' && !showRejectInput && (
-                            <div className="grid grid-cols-2 gap-2 animate-in fade-in duration-300">
+                        {['Pending', 'Received'].includes(order.status) && !showRejectInput && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                    Online payment has not been received for this order yet. It moves ahead automatically once the customer pays.
+                                </p>
+                                <button onClick={() => setShowRejectInput(true)} className="text-sm text-red-600 hover:underline">Cancel this order</button>
+                            </div>
+                        )}
+
+                        {order.status === 'Processing' && !showRejectInput && (
+                            <div className="space-y-3">
+                                <p className="text-sm text-gray-600">Book the courier outside the system, then enter its details. The customer is notified with the tracking ID.</p>
+                                <div><label className="block text-xs font-medium text-gray-600 mb-1">Courier name *</label>
+                                    <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-900 bg-white" value={shipForm.courierName} onChange={(e) => setShipForm({ ...shipForm, courierName: e.target.value })} placeholder="e.g. Blue Dart, Delhivery" /></div>
+                                <div><label className="block text-xs font-medium text-gray-600 mb-1">Tracking ID *</label>
+                                    <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-900 bg-white" value={shipForm.trackingId} onChange={(e) => setShipForm({ ...shipForm, trackingId: e.target.value })} /></div>
+                                <div><label className="block text-xs font-medium text-gray-600 mb-1">Tracking link (optional)</label>
+                                    <input className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-900 bg-white" value={shipForm.trackingUrl} onChange={(e) => setShipForm({ ...shipForm, trackingUrl: e.target.value })} placeholder="https://" /></div>
+                                <div><label className="block text-xs font-medium text-gray-600 mb-1">Expected delivery date</label>
+                                    <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-900 bg-white" value={shipForm.estimatedDelivery} onChange={(e) => setShipForm({ ...shipForm, estimatedDelivery: e.target.value })} /></div>
                                 <button
-                                    onClick={handleApprove}
-                                    disabled={actionLoading}
-                                    className="flex items-center justify-center gap-2 py-2.5 bg-black text-white rounded-none text-[9px] font-black uppercase tracking-widest hover:bg-gold transition-all shadow-md active:scale-95 disabled:opacity-50"
+                                    onClick={() => updateStatus('Shipped', shipForm)}
+                                    disabled={actionLoading || !shipForm.courierName.trim() || !shipForm.trackingId.trim()}
+                                    className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 bg-gray-900 text-white hover:bg-black flex items-center justify-center gap-2"
                                 >
-                                    {actionLoading ? 'Connecting...' : <><CheckCircle2 size={14} strokeWidth={3} /> Approve Order</>}
+                                    <Truck size={14} /> {actionLoading ? 'Updating...' : 'Mark as shipped'}
                                 </button>
-                                <button
-                                    onClick={() => setShowRejectInput(true)}
-                                    className="flex items-center justify-center gap-2 py-2.5 bg-[#FDF5F6] border border-black/10 text-gray-400 rounded-none text-[9px] font-black uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
-                                >
-                                    <XCircle size={14} strokeWidth={3} /> Reject
+                                <button onClick={() => setShowRejectInput(true)} className="text-sm text-red-600 hover:underline">Cancel this order</button>
+                            </div>
+                        )}
+
+                        {order.status === 'Shipped' && (
+                            <div className="space-y-2">
+                                <p className="text-sm text-gray-600">Shipped via {order.courierName}, tracking {order.trackingId}.</p>
+                                <button onClick={() => updateStatus('Out For Delivery')} disabled={actionLoading} className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 border border-gray-300 text-gray-800 hover:bg-gray-50">Mark out for delivery</button>
+                                <button onClick={() => updateStatus('Delivered')} disabled={actionLoading} className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2">
+                                    <Check size={14} /> {actionLoading ? 'Updating...' : 'Mark as delivered'}
                                 </button>
                             </div>
                         )}
 
-                        {order.status === 'Processing' && (
-                            <button
-                                onClick={() => updateStatus('Shipped')}
-                                disabled={actionLoading}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-black text-white rounded-none text-[9px] font-black uppercase tracking-widest hover:bg-gold transition-all shadow-md active:scale-95 disabled:opacity-50"
-                            >
-                                <Truck size={14} /> {actionLoading ? 'Updating...' : 'Confirm Shipment (Mark Shipped)'}
-                            </button>
-                        )}
-
-                        {order.status === 'Shipped' && (
-                            <button
-                                onClick={() => updateStatus('Delivered')}
-                                disabled={actionLoading}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-none text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
-                            >
-                                <Check size={14} /> {actionLoading ? 'Updating...' : 'Confirm Delivery (Mark Delivered)'}
+                        {order.status === 'Out For Delivery' && (
+                            <button onClick={() => updateStatus('Delivered')} disabled={actionLoading} className="w-full py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2">
+                                <Check size={14} /> {actionLoading ? 'Updating...' : 'Mark as delivered'}
                             </button>
                         )}
 
                         {showRejectInput && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                                <div className="bg-red-50 p-3 rounded-none border border-red-100">
-                                    <label className="text-[8px] font-black text-red-400 uppercase tracking-widest block mb-2">Internal Rejection Reason</label>
+                            <div className="space-y-3">
+                                <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                    <label className="block text-xs font-medium text-red-700 mb-1">Reason for cancelling (the customer is told)</label>
                                     <textarea
                                         value={rejectionReason}
                                         onChange={(e) => setRejectionReason(e.target.value)}
-                                        placeholder="Enter reason for customer..."
-                                        className="w-full bg-white border border-red-200 rounded-none p-3 text-[10px] font-bold text-gray-900 focus:outline-none focus:border-red-400 transition-all min-h-[60px] resize-none"
+                                        className="w-full bg-white border border-red-200 rounded-lg p-2 text-sm focus:outline-none focus:border-red-400 min-h-[60px] resize-none"
                                         autoFocus
                                     />
+                                    {order.paymentStatus === 'Completed' && order.paymentMethod === 'razorpay' && (
+                                        <p className="text-xs text-red-700 mt-2">The online payment of ₹{order.total?.toLocaleString('en-IN')} will be refunded to the customer automatically.</p>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        onClick={() => setShowRejectInput(false)}
-                                        className="py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 rounded-none text-[9px] font-black uppercase tracking-widest transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={confirmReject}
-                                        disabled={!rejectionReason.trim() || actionLoading}
-                                        className="py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-none text-[9px] font-black uppercase tracking-widest transition-colors"
-                                    >
-                                        {actionLoading ? 'Processing...' : 'Confirm Reject'}
+                                    <button onClick={() => setShowRejectInput(false)} className="py-2 rounded-lg border border-gray-300 text-sm">Back</button>
+                                    <button onClick={confirmCancel} disabled={!rejectionReason.trim() || actionLoading} className="py-2 rounded-lg bg-red-600 text-white text-sm disabled:opacity-50">
+                                        {actionLoading ? 'Cancelling...' : 'Confirm cancel'}
                                     </button>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Manual Status Override (Advanced) */}
-                        {!['Delivered', 'Cancelled'].includes(order.status) && (
-                            <div className="mt-6 pt-6 border-t border-black/5">
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-3 italic opacity-60">Manual Protocol Override</p>
-                                <select
-                                    className="w-full bg-gray-50 border border-black/5 p-2 text-[9px] font-black uppercase tracking-widest outline-none focus:border-black/20"
-                                    value={order.status}
-                                    onChange={(e) => updateStatus(e.target.value)}
-                                    disabled={actionLoading}
-                                >
-                                    <option value="Pending">Force Pending</option>
-                                    <option value="Processing">Force Processing</option>
-                                    <option value="Shipped">Force Shipped</option>
-                                    <option value="In Transit">Force In Transit</option>
-                                    <option value="Delivered">Force Delivered</option>
-                                    <option value="Cancelled">Force Cancelled</option>
-                                </select>
                             </div>
                         )}
 
                         {['Delivered', 'Cancelled'].includes(order.status) && (
-                            <div className="p-4 bg-gray-50 border border-black/5 flex items-center justify-center gap-3">
+                            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center gap-3">
                                 <Lock size={14} className="text-gray-400" />
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Order Life Cycle Completed</span>
+                                <span className="text-sm text-gray-500">This order is closed. Returns and exchanges are handled from the Returns and Replacements pages.</span>
                             </div>
                         )}
                     </div>

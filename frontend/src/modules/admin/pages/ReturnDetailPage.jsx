@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReturnWorkflowPanel from '../components/ReturnWorkflowPanel';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -53,8 +54,8 @@ const ReturnDetailPage = () => {
 
     // Update Status Mutation
     const updateStatusMutation = useMutation({
-        mutationFn: async ({ status, comment, refundAmount }) => {
-            const res = await api.patch(`/returns/${id}`, { status, adminComment: comment, refundAmount });
+        mutationFn: async ({ comment, ...rest }) => {
+            const res = await api.patch(`/returns/${id}`, { ...rest, adminComment: comment });
             return res.data;
         },
         onSuccess: (res) => {
@@ -271,34 +272,14 @@ const ReturnDetailPage = () => {
                         </div>
                     )}
 
-                    {/* Final Refund Action (Approved -> Refunded) */}
-                    {ret.status?.toLowerCase() === 'approved' && !isReplacement && (
-                        <div className="bg-[#0a0a0a] p-4 rounded-none border border-black shadow-xl animate-in slide-in-from-bottom-4">
-                            <div className="flex items-center gap-2 mb-4 border-l-2 border-gold pl-3">
-                                <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Execute Fiscal Remittance</h3>
-                            </div>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest px-1">Refund Amount</label>
-                                    <div className="relative">
-                                        <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 text-gold" size={14} />
-                                        <input
-                                            type="number"
-                                            value={refundAmount}
-                                            onChange={(e) => setRefundAmount(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 p-3 pl-10 text-white text-[11px] font-black outline-none focus:border-gold"
-                                            placeholder="Enter Amount"
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => updateStatusMutation.mutate({ status: 'Refunded', comment: 'Refund processed via bank transfer.', refundAmount: Number(refundAmount) })}
-                                    className="w-full py-3 bg-gold text-black text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
-                                >
-                                    <CreditCard size={14} /> Process & Notify Patron
-                                </button>
-                            </div>
-                        </div>
+                    {/* Manual workflow: pickup -> quality check -> refund */}
+                    {ret.status?.toLowerCase() !== 'pending' && (
+                        <ReturnWorkflowPanel
+                            key={ret.status}
+                            request={ret}
+                            busy={updateStatusMutation.isPending}
+                            onUpdate={(payload) => updateStatusMutation.mutate(payload)}
+                        />
                     )}
 
                     {/* Decision Note (If resolved) */}

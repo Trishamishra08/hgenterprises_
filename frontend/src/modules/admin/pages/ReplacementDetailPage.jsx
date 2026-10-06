@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReturnWorkflowPanel from '../components/ReturnWorkflowPanel';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -51,13 +52,13 @@ const ReplacementDetailPage = () => {
     });
 
     const updateStatusMutation = useMutation({
-        mutationFn: async ({ status, comment }) => {
-            const res = await api.patch(`/returns/${id}`, { status, adminComment: comment });
-            return res.data.request;
+        mutationFn: async ({ comment, ...rest }) => {
+            const res = await api.patch(`/returns/${id}`, { ...rest, adminComment: comment });
+            return res.data;
         },
         onSuccess: (updatedRequest) => {
-            queryClient.setQueryData(['replacement', id], updatedRequest);
-            toast.success(`Protocol state updated to ${updatedRequest.status}`);
+            queryClient.invalidateQueries({ queryKey: ['replacement', id] });
+            toast.success(`Status updated to ${updatedRequest.status}`);
             setAdminComment('');
         },
         onError: (err) => {
@@ -241,6 +242,16 @@ const ReplacementDetailPage = () => {
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* Manual workflow: pickup -> quality check -> replacement shipped */}
+                    {currentData.status?.toLowerCase() !== 'pending' && (
+                        <ReturnWorkflowPanel
+                            key={currentData.status}
+                            request={currentData}
+                            busy={updateStatusMutation.isPending}
+                            onUpdate={(payload) => updateStatusMutation.mutate(payload)}
+                        />
                     )}
 
                     {/* Customer Logistics Card */}

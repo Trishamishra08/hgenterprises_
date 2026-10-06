@@ -73,9 +73,10 @@ const OrderTracking = () => {
     const getStepIndex = (status) => {
         switch (status) {
             case 'Pending': return 0;
+            case 'Received': return 1;
             case 'Processing': return 1;
             case 'Shipped': return 2;
-            case 'In Transit': return 3;
+            case 'Out For Delivery': return 3;
             case 'Delivered': return 4;
             case 'Cancelled': return -1;
             default: return 0;
@@ -89,19 +90,23 @@ const OrderTracking = () => {
         return isNaN(d.getTime()) ? 'Pending' : d.toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     };
 
-    // --- DELIVERY TIMELINE ---
-    const deliveryBaseDate = new Date(order.date || order.createdAt || new Date()).getTime();
+    // --- DELIVERY TIMELINE (real dates recorded when the admin updates the order) ---
+    const historyAt = (status) => (order.statusHistory || []).find((h) => h.status === status)?.at;
+    const stepDate = (value) => (value ? formatDateTime(value) : 'Pending');
     const deliverySteps = [
-        { status: 'Order Placed', date: formatDateTime(deliveryBaseDate), icon: <ShoppingBag className="w-5 h-5" /> },
-        { status: 'Confirmed', date: formatDateTime(deliveryBaseDate + 3600000), icon: <CheckCircle className="w-5 h-5" /> },
-        { status: 'Dispatched', date: formatDateTime(deliveryBaseDate + 86400000), icon: <Package className="w-5 h-5" /> },
-        { status: 'In Transit', date: formatDateTime(deliveryBaseDate + 172800000), icon: <Truck className="w-5 h-5" /> },
-        { status: 'Delivered', date: formatDateTime(deliveryBaseDate + 266400000), icon: <Check className="w-5 h-5" />, isLast: true }
+        { status: 'Order Placed', date: stepDate(order.createdAt || order.date), icon: <ShoppingBag className="w-5 h-5" /> },
+        { status: 'Confirmed', date: stepDate(historyAt('Processing')), icon: <CheckCircle className="w-5 h-5" /> },
+        { status: 'Dispatched', date: stepDate(order.shippedAt || historyAt('Shipped')), icon: <Package className="w-5 h-5" /> },
+        { status: 'Out For Delivery', date: stepDate(historyAt('Out For Delivery')), icon: <Truck className="w-5 h-5" /> },
+        { status: 'Delivered', date: stepDate(order.deliveredAt || historyAt('Delivered')), icon: <Check className="w-5 h-5" />, isLast: true }
     ];
+    const expectedArrival = order.estimatedDelivery
+        ? new Date(order.estimatedDelivery).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : 'will be shared once the order is dispatched';
 
     const isCancelled = order.status === 'Cancelled';
     const currentStatus = isCancelled
-        ? { status: 'Cancelled', icon: <XCircle className="w-5 h-5 text-red-500" />, date: order.updatedAt ? formatDateTime(order.updatedAt) : 'N/A' }
+        ? { status: 'Cancelled', icon: <XCircle className="w-5 h-5 text-red-500" />, date: historyAt('Cancelled') ? formatDateTime(historyAt('Cancelled')) : (order.updatedAt ? formatDateTime(order.updatedAt) : 'N/A') }
         : deliverySteps[currentStepIndex] || deliverySteps[0];
 
     const orderAddress = order.address || order.shippingAddress || {};
@@ -269,7 +274,7 @@ const OrderTracking = () => {
                             <h2 className="text-2xl md:text-4xl font-serif text-black tracking-tight mb-1 italic">
                                 {currentStatus.status}
                             </h2>
-                            <p className="text-zinc-400 font-serif italic text-xs md:text-sm">Expected arrival: {formatDateTime(deliveryBaseDate + 300000000)}</p>
+                            <p className="text-zinc-400 font-serif italic text-xs md:text-sm">Expected arrival: {expectedArrival}</p>
                         </div>
                         <div className="flex-shrink-0">
                             <div className="w-16 h-16 md:w-24 md:h-24 bg-black rounded-full flex items-center justify-center text-white shadow-xl relative">
@@ -319,9 +324,10 @@ const OrderTracking = () => {
                                         <div>
                                             <h4 className={`text-sm font-serif italic mb-0.5 transition-colors duration-500 ${idx <= currentStepIndex ? 'text-black' : 'text-zinc-300'}`}>{step.status}</h4>
                                             <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{step.date}</p>
-                                            {idx === 2 && currentStepIndex >= 2 && (
-                                                <div className="mt-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100 text-[10px] text-zinc-500 font-serif italic">
-                                                    Registry updated: Package handed to logistics. Tracking: <strong>AWB900823</strong>
+                                            {idx === 2 && currentStepIndex >= 2 && order.trackingId && (
+                                                <div className="mt-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100 text-[11px] text-zinc-600">
+                                                    Shipped via <strong>{order.courierName}</strong>. Tracking ID: <strong>{order.trackingId}</strong>
+                                                    {order.trackingUrl && <> &middot; <a href={order.trackingUrl} target="_blank" rel="noreferrer" className="underline text-[#8B4356]">Track on courier site</a></>}
                                                 </div>
                                             )}
                                         </div>
@@ -389,8 +395,8 @@ const OrderTracking = () => {
                         <div className="p-4 text-center">
                             <Calendar className="w-4 h-4 text-zinc-200 mx-auto mb-2" />
                             <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest leading-loose">
-                                Scheduled Registry Window<br />
-                                <span className="text-black font-serif italic">{formatDateTime(deliveryBaseDate + 259200000)} — {formatDateTime(deliveryBaseDate + 432000000)}</span>
+                                Expected delivery<br />
+                                <span className="text-black font-serif italic">{expectedArrival}</span>
                             </p>
                         </div>
                     </div>
