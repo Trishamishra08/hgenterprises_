@@ -1,6 +1,22 @@
+const jwt = require('jsonwebtoken');
 const Product = require('../models/Product');
 const Pack = require('../models/Pack');
+const User = require('../models/User');
 const InventoryLog = require('../models/InventoryLog');
+
+// Best-effort admin check for routes that stay public for active products but
+// must not leak inactive/hidden ones to anonymous requests.
+async function requesterIsAdmin(req) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return false;
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id);
+        return user?.role === 'admin';
+    } catch (_) {
+        return false;
+    }
+}
 
 // Get all products with optional filters
 exports.getAllProducts = async (req, res) => {
@@ -123,6 +139,11 @@ exports.getProductById = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: 'Product not found' });
+
+        if (!product.isActive && !(await requesterIsAdmin(req))) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
         res.status(200).json(product);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching product', error: error.message });
