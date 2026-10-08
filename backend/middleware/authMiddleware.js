@@ -14,8 +14,11 @@ const authMiddleware = async (req, res, next) => {
             return res.status(401).json({ message: 'User no longer exists' });
         }
 
-        req.user = decoded;
-        console.log(`[AUTH] Token Verified for User: ${decoded.id}, Role: ${decoded.role}`);
+        // Use the live role from the DB, not the one baked into the token at login
+        // time — otherwise a role change (e.g. promoting a user to admin) has no
+        // effect until the token expires and the user logs in again.
+        req.user = { ...decoded, role: userExists.role };
+        console.log(`[AUTH] Token Verified for User: ${decoded.id}, Role: ${req.user.role}`);
         next();
     } catch (error) {
         console.error(`[AUTH] Token Error: ${error.message}`);
