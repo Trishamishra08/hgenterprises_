@@ -476,6 +476,25 @@ export const ShopProvider = ({ children }) => {
         }
     };
 
+    const bulkSetActive = async (ids, isActive) => {
+        try {
+            const results = await Promise.all(
+                ids.map((id) => api.put(`/products/${id}`, { isActive }).then((res) => res.data).catch(() => null))
+            );
+            setProducts(prev => prev.map(p => {
+                const updated = results.find(r => r && (r._id === p.id || r._id === p._id));
+                return updated ? { ...p, ...updated, id: updated._id } : p;
+            }));
+            const successCount = results.filter(Boolean).length;
+            showNotification(`${successCount} product${successCount === 1 ? '' : 's'} ${isActive ? 'made live' : 'hidden'}`);
+            return successCount;
+        } catch (error) {
+            console.error('Error bulk-updating product status:', error);
+            showNotification('Bulk update failed');
+            return 0;
+        }
+    };
+
     const toggleProductStatus = async (id) => {
         try {
             const res = await api.patch(`/products/${id}/status`);
@@ -570,7 +589,7 @@ export const ShopProvider = ({ children }) => {
             placeOrder, registerPaidOrder, addAddress, removeAddress, setDefaultAddress, defaultAddressId,
             createTicket, toggleMenu, toggleSearch, getActiveCoupons, showNotification,
             homepageSections, updateSection, toggleUserStatus, updateCategory, deleteCategory,
-            createCoupon, updateCoupon, deleteCoupon, deleteProduct, toggleProductStatus,
+            createCoupon, updateCoupon, deleteCoupon, deleteProduct, toggleProductStatus, bulkSetActive,
             getProductById, addProduct, updateProduct,
             getOrderById, updateOrderStatus, getReturns, userReviews,
             refreshOrders: fetchPrivateData,

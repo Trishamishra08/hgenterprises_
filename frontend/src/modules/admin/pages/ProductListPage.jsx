@@ -20,7 +20,7 @@ import AdminStatsCard from '../components/AdminStatsCard';
 
 const ProductListPage = () => {
     const navigate = useNavigate();
-    const { products, deleteProduct, updateProduct } = useShop();
+    const { products, deleteProduct, updateProduct, bulkSetActive } = useShop();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('All');
 
@@ -66,6 +66,26 @@ const ProductListPage = () => {
         }
     };
 
+    // Jewellery (gold/silver/diamond/platinum pieces) vs. Hand Tools / Laser Machines —
+    // used for the BIS-compliance bulk hide/restore below.
+    const isJewelleryCategory = (category) => !/tool|laser|machine/i.test(category || '');
+    const jewelleryProducts = useMemo(() => products.filter(p => isJewelleryCategory(p.category)), [products]);
+    const hiddenJewelleryCount = jewelleryProducts.filter(p => p.isActive === false).length;
+
+    const handleHideJewellery = async () => {
+        const liveIds = jewelleryProducts.filter(p => p.isActive !== false).map(p => p.id || p._id);
+        if (liveIds.length === 0) return;
+        if (!window.confirm(`Hide all ${liveIds.length} jewellery products from the storefront? Tools/Machines won't be affected. You can restore them anytime.`)) return;
+        await bulkSetActive(liveIds, false);
+    };
+
+    const handleRestoreJewellery = async () => {
+        const hiddenIds = jewelleryProducts.filter(p => p.isActive === false).map(p => p.id || p._id);
+        if (hiddenIds.length === 0) return;
+        if (!window.confirm(`Make all ${hiddenIds.length} hidden jewellery products live again?`)) return;
+        await bulkSetActive(hiddenIds, true);
+    };
+
     return (
         <div className="space-y-4 animate-in fade-in duration-700 pb-8 text-left font-outfit">
             {/* Header Section */}
@@ -74,12 +94,29 @@ const ProductListPage = () => {
                     <h1 className="text-xl md:text-2xl font-serif font-black text-black uppercase tracking-widest leading-none">Inventory Vault</h1>
                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1.5">Harshad Gauri enterprises • Product Catalog</p>
                 </div>
-                <button
-                    onClick={() => navigate('/admin/products/add')}
-                    className="bg-black text-white px-5 py-2.5 rounded-none text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-gold hover:text-black transition-all shadow-md active:scale-95"
-                >
-                    <Plus size={14} /> Initialize Product
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                    {hiddenJewelleryCount > 0 && (
+                        <button
+                            onClick={handleRestoreJewellery}
+                            className="border border-emerald-600 text-emerald-700 px-4 py-2.5 rounded-none text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-50 transition-all active:scale-95"
+                        >
+                            <CheckCircle2 size={14} /> Restore Jewellery ({hiddenJewelleryCount})
+                        </button>
+                    )}
+                    <button
+                        onClick={handleHideJewellery}
+                        title="Hides all jewellery (gold/silver/diamond/platinum) products from the storefront — e.g. pending BIS hallmark certification. Hand Tools / Laser Machines are not affected."
+                        className="border border-red-600 text-red-700 px-4 py-2.5 rounded-none text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-red-50 transition-all active:scale-95"
+                    >
+                        <XCircle size={14} /> Hide Jewellery (No BIS)
+                    </button>
+                    <button
+                        onClick={() => navigate('/admin/products/add')}
+                        className="bg-black text-white px-5 py-2.5 rounded-none text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-gold hover:text-black transition-all shadow-md active:scale-95"
+                    >
+                        <Plus size={14} /> Initialize Product
+                    </button>
+                </div>
             </div>
 
             {/* Stats Overview Gradient */}
