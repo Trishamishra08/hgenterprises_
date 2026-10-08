@@ -72,6 +72,16 @@ const Checkout = () => {
     const gstAmount = Math.round(subtotal - (subtotal / (1 + gstRate)));
     const total = subtotal + shipping - discount;
 
+    // Cash on Delivery limit is admin-configurable (Settings > codMaxAmount)
+    const COD_LIMIT = settings?.codMaxAmount ?? 30000;
+    const codAvailable = total <= COD_LIMIT;
+
+    useEffect(() => {
+        if (!codAvailable && paymentMethod === 'cod') {
+            setPaymentMethod('online');
+        }
+    }, [codAvailable, paymentMethod]);
+
     // Get active coupons from context
     const availableCoupons = coupons ? coupons.filter(c => c.active) : [];
 
@@ -601,6 +611,44 @@ const Checkout = () => {
                                     </div>
                                 </div>
                             </label>
+
+                            {codAvailable ? (
+                                <label
+                                    onClick={() => setPaymentMethod('cod')}
+                                    className={`flex items-center gap-4 border p-4 rounded-xl cursor-pointer transition-all ${paymentMethod === 'cod' ? 'border-black bg-gray-50' : 'border-gray-200'}`}
+                                >
+                                    <div className="relative flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="payment"
+                                            value="cod"
+                                            checked={paymentMethod === 'cod'}
+                                            onChange={() => setPaymentMethod('cod')}
+                                            className="peer h-4 w-4 cursor-pointer appearance-none rounded-full border border-gray-300 checked:border-black checked:bg-black focus:outline-none"
+                                        />
+                                        <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 peer-checked:opacity-100"></div>
+                                    </div>
+                                    <div className="flex items-center gap-4 flex-1">
+                                        <div className="bg-[#EBCDD0] p-2.5 rounded-full text-black">
+                                            <Banknote size={20} />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-sm md:text-base text-black font-display uppercase tracking-wide">Cash on Delivery</p>
+                                            <p className="text-xs text-gray-500 font-serif">Pay when your order arrives</p>
+                                        </div>
+                                    </div>
+                                </label>
+                            ) : (
+                                <div className="flex items-center gap-4 border border-gray-100 p-4 rounded-xl bg-gray-50 opacity-60 cursor-not-allowed">
+                                    <div className="bg-gray-200 p-2.5 rounded-full text-gray-400">
+                                        <Banknote size={20} />
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-sm md:text-base text-gray-400 font-display uppercase tracking-wide">Cash on Delivery</p>
+                                        <p className="text-xs text-gray-400 font-serif">Unavailable for orders above ₹{COD_LIMIT.toLocaleString('en-IN')}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

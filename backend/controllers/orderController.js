@@ -29,7 +29,7 @@ exports.createOrder = async (req, res) => {
         const priced = await priceOrder({ items, couponCode, userId: req.user.id });
 
         if (method === 'cod') {
-            const cap = priced.settings.codMaxAmount ?? 50000;
+            const cap = priced.settings.codMaxAmount ?? 30000;
             if (priced.total > cap) {
                 return res.status(400).json({ message: `Cash on Delivery is available up to ₹${cap.toLocaleString('en-IN')}. Please pay online for this order.` });
             }

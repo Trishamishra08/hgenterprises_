@@ -8,7 +8,7 @@ const PlatformSettingsPage = () => {
     const { settings } = useShop();
     const [gstPercentage, setGstPercentage] = useState(18);
     const [shippingCharge, setShippingCharge] = useState(50);
-    const [codMaxAmount, setCodMaxAmount] = useState(50000);
+    const [codMaxAmount, setCodMaxAmount] = useState(30000);
     const [returnWindowDays, setReturnWindowDays] = useState(7);
     const [exchangeWindowDays, setExchangeWindowDays] = useState(10);
     const [saving, setSaving] = useState(false);
@@ -32,7 +32,7 @@ const PlatformSettingsPage = () => {
         if (settings) {
             setGstPercentage(settings.gstPercentage || 18);
             setShippingCharge(settings.shippingCharge || 50);
-            setCodMaxAmount(settings.codMaxAmount ?? 50000);
+            setCodMaxAmount(settings.codMaxAmount ?? 30000);
             setReturnWindowDays(settings.returnWindowDays ?? 7);
             setExchangeWindowDays(settings.exchangeWindowDays ?? 10);
             if (settings.pdfBrochure) {
@@ -181,7 +181,7 @@ const PlatformSettingsPage = () => {
                                 type="number"
                                 value={codMaxAmount}
                                 onChange={e => setCodMaxAmount(e.target.value)}
-                                placeholder="e.g. 50000"
+                                placeholder="e.g. 30000"
                                 className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-xl font-bold text-black focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all placeholder:text-gray-200"
                             />
                             <p className="text-[11px] text-gray-400 ml-1">Orders above this amount must be paid online.</p>

@@ -407,6 +407,11 @@ exports.adminRespond = async (req, res) => {
                 link: '/video-call',
             });
 
+            const ioReject = req.app.get('io');
+            if (ioReject) {
+                ioReject.to('admins').emit('video-call:request-resolved', { bookingId: booking._id });
+            }
+
             return res.json(booking);
         }
 
@@ -424,6 +429,11 @@ exports.adminRespond = async (req, res) => {
             message: 'Please confirm to join the video consultation.',
             link: '/video-call/bookings',
         });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to('admins').emit('video-call:request-resolved', { bookingId: booking._id });
+        }
 
         res.json(booking);
     } catch (error) {

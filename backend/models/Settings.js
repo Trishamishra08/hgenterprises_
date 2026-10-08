@@ -23,7 +23,7 @@ const settingsSchema = new mongoose.Schema({
     shippingCharge: { type: Number, default: 50 },
     returnWindowDays: { type: Number, default: 7 },     // days after delivery a return can be requested
     exchangeWindowDays: { type: Number, default: 10 },  // days after delivery an exchange can be requested
-    codMaxAmount: { type: Number, default: 50000 }, // Cash on Delivery is refused above this order total
+    codMaxAmount: { type: Number, default: 30000 }, // Cash on Delivery is refused above this order total; admin-configurable
 
     // Value Propositions
     warrantyText: { type: String, default: 'Lifetime Warranty' },

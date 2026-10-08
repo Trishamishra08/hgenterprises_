@@ -55,7 +55,18 @@ const AdminLayout = ({ children }) => {
         };
     }, []);
 
-    // Realtime ringtone whenever any admin is logged into the panel
+    // Realtime ringtone whenever any admin is logged into the panel.
+    // Keeps ringing on a repeating interval until the admin dismisses/opens the
+    // alert, or the request is resolved (accepted/rejected, by this admin or another).
+    const ringIntervalRef = useRef(null);
+
+    const stopRinging = () => {
+        if (ringIntervalRef.current) {
+            clearInterval(ringIntervalRef.current);
+            ringIntervalRef.current = null;
+        }
+    };
+
     useEffect(() => {
         let socket;
         try {
@@ -67,12 +78,22 @@ const AdminLayout = ({ children }) => {
         const onNewRequest = (payload) => {
             setVcPendingCount((c) => c + 1);
             setIncomingAlert(payload || { contactName: 'Customer' });
+            stopRinging();
             playAdminIncomingRing();
+            ringIntervalRef.current = setInterval(playAdminIncomingRing, 4000);
+        };
+
+        const onResolved = () => {
+            stopRinging();
+            setIncomingAlert(null);
         };
 
         socket.on('video-call:new-request', onNewRequest);
+        socket.on('video-call:request-resolved', onResolved);
         return () => {
             socket.off('video-call:new-request', onNewRequest);
+            socket.off('video-call:request-resolved', onResolved);
+            stopRinging();
         };
     }, []);
 
@@ -418,6 +439,7 @@ const AdminLayout = ({ children }) => {
                             <button
                                 type="button"
                                 onClick={() => {
+                                    stopRinging();
                                     setIncomingAlert(null);
                                     navigate('/admin/video-calls?tab=requests');
                                 }}
@@ -427,7 +449,10 @@ const AdminLayout = ({ children }) => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setIncomingAlert(null)}
+                                onClick={() => {
+                                    stopRinging();
+                                    setIncomingAlert(null);
+                                }}
                                 className="px-3 py-2 rounded-full border border-white/20 text-xs"
                             >
                                 Dismiss
