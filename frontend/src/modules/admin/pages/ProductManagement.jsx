@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Trash2, Eye, Package, TrendingUp, Check, Plus } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package, TrendingUp, Check, Plus, ShieldOff, ShieldCheck } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import DataTable from '../components/common/DataTable';
 import { useShop } from '../../../context/ShopContext';
@@ -8,11 +8,31 @@ import BulkUpdateModal from '../components/BulkUpdateModal';
 
 const ProductManagement = () => {
     const navigate = useNavigate();
-    const { products, deleteProduct, toggleProductStatus, bulkUpdatePrices } = useShop();
+    const { products, deleteProduct, toggleProductStatus, bulkUpdatePrices, bulkSetActive } = useShop();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('all');
+
+    // Jewellery (gold/silver/diamond/platinum pieces) vs. Hand Tools / Laser Machines —
+    // used for the BIS-compliance bulk hide/restore below.
+    const isJewelleryCategory = (category) => !/tool|laser|machine/i.test(category || '');
+    const jewelleryProducts = products.filter(p => isJewelleryCategory(p.category));
+    const hiddenJewelleryCount = jewelleryProducts.filter(p => p.isActive === false).length;
+
+    const handleHideJewellery = async () => {
+        const liveIds = jewelleryProducts.filter(p => p.isActive !== false).map(p => p._id || p.id);
+        if (liveIds.length === 0) return;
+        if (!window.confirm(`Hide all ${liveIds.length} jewellery products from the storefront? Tools/Machines won't be affected. You can restore them anytime.`)) return;
+        await bulkSetActive(liveIds, false);
+    };
+
+    const handleRestoreJewellery = async () => {
+        const hiddenIds = jewelleryProducts.filter(p => p.isActive === false).map(p => p._id || p.id);
+        if (hiddenIds.length === 0) return;
+        if (!window.confirm(`Make all ${hiddenIds.length} hidden jewellery products live again?`)) return;
+        await bulkSetActive(hiddenIds, true);
+    };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
@@ -165,6 +185,23 @@ const ProductManagement = () => {
                 searchPlaceholder="Search product by nomenclature..."
                 filters={filters}
             >
+                {hiddenJewelleryCount > 0 && (
+                    <button
+                        onClick={handleRestoreJewellery}
+                        className="border border-emerald-600 text-emerald-700 rounded-none px-4 py-2 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-all flex items-center gap-2 active:scale-95"
+                    >
+                        <ShieldCheck size={14} />
+                        <span>Restore Jewellery ({hiddenJewelleryCount})</span>
+                    </button>
+                )}
+                <button
+                    onClick={handleHideJewellery}
+                    title="Hides all jewellery (gold/silver/diamond/platinum) products from the storefront — e.g. pending BIS hallmark certification. Hand Tools / Laser Machines are not affected."
+                    className="border border-red-600 text-red-700 rounded-none px-4 py-2 text-[9px] font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-2 active:scale-95"
+                >
+                    <ShieldOff size={14} />
+                    <span>Hide Jewellery (No BIS)</span>
+                </button>
                 <button
                     onClick={() => setIsBulkModalOpen(true)}
                     className="bg-black text-white rounded-none px-4 py-2 text-[9px] font-black uppercase tracking-widest hover:bg-gold hover:text-black transition-all flex items-center gap-2 active:scale-95 shadow-md"
