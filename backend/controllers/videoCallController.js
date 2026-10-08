@@ -475,6 +475,23 @@ exports.userConfirm = async (req, res) => {
     }
 };
 
+exports.getBookingByCallId = async (req, res) => {
+    try {
+        const booking = await VideoCallBooking.findOne({ callId: req.params.callId }).populate('slot');
+        if (!booking) return res.status(404).json({ message: 'Call not found' });
+
+        const isOwner = booking.user.toString() === req.user.id;
+        const isAdmin = req.user.role === 'admin';
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({ message: 'Not allowed' });
+        }
+
+        res.json(booking);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.cancelBooking = async (req, res) => {
     try {
         const booking = await VideoCallBooking.findById(req.params.id);

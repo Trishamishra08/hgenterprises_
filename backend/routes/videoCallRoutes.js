@@ -19,6 +19,7 @@ router.delete('/cart/:productId', authMiddleware, ctrl.removeFromCart);
 // Bookings
 router.post('/bookings', authMiddleware, ctrl.createBooking);
 router.get('/bookings/mine', authMiddleware, ctrl.myBookings);
+router.get('/bookings/by-call/:callId', authMiddleware, ctrl.getBookingByCallId);
 router.get('/bookings/pending-count', authMiddleware, adminMiddleware, ctrl.pendingCount);
 router.get('/bookings', authMiddleware, adminMiddleware, ctrl.listBookingsAdmin);
 router.post('/bookings/:id/admin', authMiddleware, adminMiddleware, ctrl.adminRespond);

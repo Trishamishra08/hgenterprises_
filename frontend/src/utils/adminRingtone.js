@@ -7,6 +7,24 @@ const RING_SRC = `${import.meta.env.BASE_URL || '/'}vc-incoming-ring.wav`;
 let sharedAudio = null;
 let unlocked = false;
 
+const MUTE_KEY = 'hg_admin_ring_muted';
+
+export function isAdminRingMuted() {
+    try {
+        return localStorage.getItem(MUTE_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+export function setAdminRingMuted(muted) {
+    try {
+        localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+    } catch (_) {
+        /* ignore (private browsing / storage disabled) */
+    }
+}
+
 function getAudio() {
     if (typeof window === 'undefined') return null;
     if (!sharedAudio) {
@@ -34,6 +52,8 @@ export function unlockAdminRingtone() {
 }
 
 export async function playAdminIncomingRing() {
+    if (isAdminRingMuted()) return;
+
     const audio = getAudio();
     if (!audio) return;
 

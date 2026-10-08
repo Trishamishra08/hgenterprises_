@@ -5,12 +5,13 @@ import {
     Bell, ChevronRight, ChevronDown, Star, HelpCircle, LogOut, Menu, X, ListTree,
     FileText, MessageSquare, Ticket, Settings, Plus, List, BookOpen,
     Clock, RefreshCw, RefreshCcw, RotateCcw, Boxes, ClipboardList, MapPin, Truck, CheckCircle2, XCircle,
-    AlertTriangle, FileBarChart, Percent, Video, Calendar, SlidersHorizontal, ScrollText, PlayCircle, Library, Share2, KeyRound
+    AlertTriangle, FileBarChart, Percent, Video, Calendar, SlidersHorizontal, ScrollText, PlayCircle, Library, Share2, KeyRound,
+    BellOff
 } from 'lucide-react';
 import { useShop } from '../../../context/ShopContext';
 import api from '../../../utils/api';
 import { getSocket } from '../../../utils/socket';
-import { playAdminIncomingRing, unlockAdminRingtone } from '../../../utils/adminRingtone';
+import { playAdminIncomingRing, unlockAdminRingtone, isAdminRingMuted, setAdminRingMuted } from '../../../utils/adminRingtone';
 import logo from '../../user/assets/logo_final.jpg';
 import logoName from '../../user/assets/logo_final.jpg';
 import '../admin.css';
@@ -19,6 +20,7 @@ const AdminLayout = ({ children }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
     const [vcPendingCount, setVcPendingCount] = useState(0);
     const [incomingAlert, setIncomingAlert] = useState(null);
+    const [ringMuted, setRingMuted] = useState(() => isAdminRingMuted());
     const location = useLocation();
     const navigate = useNavigate();
     const { orders } = useShop();
@@ -67,6 +69,15 @@ const AdminLayout = ({ children }) => {
         }
     };
 
+    const toggleRingMuted = () => {
+        setRingMuted((prev) => {
+            const next = !prev;
+            setAdminRingMuted(next);
+            if (next) stopRinging();
+            return next;
+        });
+    };
+
     useEffect(() => {
         let socket;
         try {
@@ -79,6 +90,7 @@ const AdminLayout = ({ children }) => {
             setVcPendingCount((c) => c + 1);
             setIncomingAlert(payload || { contactName: 'Customer' });
             stopRinging();
+            if (isAdminRingMuted()) return;
             playAdminIncomingRing();
             ringIntervalRef.current = setInterval(playAdminIncomingRing, 4000);
         };
@@ -387,6 +399,14 @@ const AdminLayout = ({ children }) => {
                     </div>
 
                     <div className="flex items-center gap-2 lg:gap-4">
+                        <button
+                            type="button"
+                            onClick={toggleRingMuted}
+                            title={ringMuted ? 'Video call ring is muted — click to unmute' : 'Mute video call ring'}
+                            className={`p-2 rounded-full transition-all border ${ringMuted ? 'bg-gray-100 border-gray-200 text-gray-400' : 'border-transparent text-[#C5A059] hover:bg-gray-50'}`}
+                        >
+                            {ringMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+                        </button>
                         <div className="text-right hidden sm:block font-serif">
                             <p className="text-[13px] text-gray-900 font-semibold">Admin Portal</p>
                             <p className="text-[11px] text-gray-500">Super User</p>
