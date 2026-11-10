@@ -47,9 +47,12 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const cleanEmail = String(email || '').trim();
 
-        // Find user
-        const user = await User.findOne({ email });
+        // Find user (trimmed + case-insensitive so admin/user emails changed in settings still match)
+        const user = await User.findOne({
+            email: new RegExp(`^${cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+        });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         // Verify password
@@ -245,7 +248,14 @@ exports.removeAddress = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { name, email, phone, bankDetails, gender } = req.body;
-        const updateData = { name, email, phone, bankDetails };
+        const updateData = { name, phone, bankDetails };
+        if (email !== undefined) {
+            const cleanEmail = String(email).trim().toLowerCase();
+            if (!cleanEmail) return res.status(400).json({ message: 'Email is required' });
+            const taken = await User.findOne({ email: cleanEmail, _id: { $ne: req.user.id } });
+            if (taken) return res.status(400).json({ message: 'Email already in use' });
+            updateData.email = cleanEmail;
+        }
         if (gender && ['Female', 'Male', 'Other'].includes(gender)) {
             updateData.gender = gender;
         }

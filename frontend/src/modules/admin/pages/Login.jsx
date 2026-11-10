@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, AlertCircle, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import loginBg from '../assets/admin-login-bg.png';
 import logoName from '../../user/assets/logo_final.jpg';
@@ -12,6 +12,7 @@ const AdminLogin = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = async (e) => {
@@ -128,13 +129,21 @@ const AdminLogin = () => {
                             <div className="relative overflow-hidden rounded-2xl border border-gray-100 transition-all duration-300 focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/5">
                                 <input
                                     required
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="••••••••"
-                                    className="w-full bg-gray-50/50 py-3.5 pl-11 pr-4 text-xs font-bold text-gray-800 outline-none placeholder:text-gray-300"
+                                    className="w-full bg-gray-50/50 py-3.5 pl-11 pr-11 text-xs font-bold text-gray-800 outline-none placeholder:text-gray-300"
                                 />
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((v) => !v)}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
                         </div>
 
